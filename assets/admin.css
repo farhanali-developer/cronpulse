@@ -1,0 +1,277 @@
+/* =========================================================
+   CronPulse — Admin Styles
+   ========================================================= */
+
+:root {
+	--cp-healthy : #00a32a;
+	--cp-overdue : #d63638;
+	--cp-pending : #996800;
+	--cp-muted   : #787c82;
+	--cp-border  : #c3c4c7;
+	--cp-surface : #fff;
+	--cp-radius  : 4px;
+	--cp-shadow  : 0 1px 3px rgba(0,0,0,.08);
+}
+
+/* Wrap ---------------------------------------------------- */
+.cp-wrap {
+	max-width: 1200px;
+}
+
+.cp-title {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	font-size: 1.5rem !important;
+	margin-bottom: 16px !important;
+}
+.cp-title .dashicons {
+	font-size: 1.5rem;
+	width: 1.5rem;
+	height: 1.5rem;
+	color: #1d2327;
+}
+
+/* Summary bar --------------------------------------------- */
+.cp-summary-bar {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	flex-wrap: wrap;
+	margin-bottom: 20px;
+}
+
+.cp-summary-card {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	background: var(--cp-surface);
+	border: 1px solid var(--cp-border);
+	border-radius: var(--cp-radius);
+	box-shadow: var(--cp-shadow);
+	padding: 12px 24px;
+	min-width: 110px;
+}
+
+.cp-summary-card .cp-num {
+	font-size: 2rem;
+	font-weight: 700;
+	line-height: 1;
+	color: #1d2327;
+}
+
+.cp-summary-card .cp-label {
+	font-size: 0.72rem;
+	text-transform: uppercase;
+	letter-spacing: .5px;
+	color: var(--cp-muted);
+	margin-top: 4px;
+}
+
+.cp-summary-card.cp-healthy .cp-num { color: var(--cp-healthy); }
+.cp-summary-card.cp-overdue .cp-num { color: var(--cp-overdue); }
+.cp-summary-card.cp-never   .cp-num { color: var(--cp-pending); }
+
+/* Inline notice ------------------------------------------- */
+.cp-notice-inline {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 8px 14px;
+	border-radius: var(--cp-radius);
+	font-size: 0.85rem;
+	font-weight: 500;
+}
+.cp-notice-inline.cp-warn {
+	background: #fcf9e8;
+	border: 1px solid #dba617;
+	color: #7a5400;
+}
+.cp-notice-inline .dashicons {
+	font-size: 1rem;
+	width: 1rem;
+	height: 1rem;
+}
+
+/* Tabs ---------------------------------------------------- */
+.cp-tabs {
+	display: flex;
+	gap: 0;
+	border-bottom: 2px solid var(--cp-border);
+	margin-bottom: 0;
+}
+
+.cp-tab {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 10px 18px;
+	font-size: 0.9rem;
+	font-weight: 500;
+	color: var(--cp-muted);
+	text-decoration: none;
+	border-bottom: 2px solid transparent;
+	margin-bottom: -2px;
+	transition: color .15s, border-color .15s;
+}
+.cp-tab:hover {
+	color: #1d2327;
+	text-decoration: none;
+}
+.cp-tab.cp-tab-active {
+	color: #2271b1;
+	border-bottom-color: #2271b1;
+}
+
+.cp-badge {
+	display: inline-block;
+	background: #2271b1;
+	color: #fff;
+	font-size: 0.7rem;
+	border-radius: 10px;
+	padding: 1px 7px;
+	font-weight: 700;
+}
+
+/* Tab panels ---------------------------------------------- */
+.cp-tab-panel {
+	background: var(--cp-surface);
+	border: 1px solid var(--cp-border);
+	border-top: none;
+	border-radius: 0 0 var(--cp-radius) var(--cp-radius);
+	padding: 16px;
+}
+
+/* Search bar ---------------------------------------------- */
+.cp-search-bar {
+	margin-bottom: 12px;
+}
+.cp-search-bar input {
+	width: 320px;
+	max-width: 100%;
+}
+
+/* Table --------------------------------------------------- */
+.cp-table {
+	border-collapse: collapse;
+	width: 100%;
+	font-size: 0.875rem;
+}
+
+.cp-table th,
+.cp-table td {
+	padding: 10px 12px;
+	text-align: left;
+	vertical-align: middle;
+	border-bottom: 1px solid #f0f0f1;
+}
+
+.cp-table thead th {
+	background: #f6f7f7;
+	font-weight: 600;
+	color: #1d2327;
+	border-bottom: 1px solid var(--cp-border);
+	white-space: nowrap;
+}
+
+.cp-table tbody tr:hover {
+	background: #f9f9fb;
+}
+
+/* Row status stripe */
+.cp-table tbody .cp-status-overdue td:first-child {
+	border-left: 3px solid var(--cp-overdue);
+}
+.cp-table tbody .cp-status-healthy td:first-child {
+	border-left: 3px solid var(--cp-healthy);
+}
+.cp-table tbody .cp-status-pending td:first-child {
+	border-left: 3px solid var(--cp-pending);
+}
+
+/* Status dots --------------------------------------------- */
+.cp-dot {
+	display: inline-block;
+	width: 9px;
+	height: 9px;
+	border-radius: 50%;
+	margin-right: 5px;
+	flex-shrink: 0;
+}
+.cp-dot-healthy { background: var(--cp-healthy); }
+.cp-dot-overdue { background: var(--cp-overdue); }
+.cp-dot-pending,
+.cp-dot-never   { background: var(--cp-pending); }
+.cp-dot-success { background: var(--cp-healthy); }
+.cp-dot-error   { background: var(--cp-overdue); }
+
+/* Hook cell ----------------------------------------------- */
+.cp-hook code {
+	font-size: 0.82rem;
+	background: #f0f0f1;
+	padding: 2px 5px;
+	border-radius: 3px;
+	word-break: break-all;
+}
+.cp-args {
+	display: inline-block;
+	font-size: 0.7rem;
+	background: #e8f0fe;
+	color: #1a73e8;
+	padding: 1px 6px;
+	border-radius: 3px;
+	margin-left: 4px;
+	cursor: help;
+}
+
+/* Utility ------------------------------------------------- */
+.cp-muted { color: var(--cp-muted); font-style: italic; }
+.cp-empty {
+	color: var(--cp-muted);
+	font-style: italic;
+	padding: 24px 0;
+	text-align: center;
+}
+
+/* Log toolbar --------------------------------------------- */
+.cp-log-toolbar {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-bottom: 12px;
+}
+.cp-log-count {
+	font-size: 0.8rem;
+	color: var(--cp-muted);
+}
+
+/* Flash message ------------------------------------------- */
+#cp-flash {
+	display: none;
+	position: fixed;
+	top: 60px;
+	right: 20px;
+	z-index: 9999;
+	padding: 10px 18px;
+	border-radius: var(--cp-radius);
+	font-size: 0.875rem;
+	font-weight: 500;
+	box-shadow: 0 2px 8px rgba(0,0,0,.18);
+	max-width: 340px;
+}
+#cp-flash.cp-flash-success {
+	background: #edfaef;
+	border: 1px solid var(--cp-healthy);
+	color: #0a4718;
+}
+#cp-flash.cp-flash-error {
+	background: #fcebec;
+	border: 1px solid var(--cp-overdue);
+	color: #5c1b1d;
+}
+
+/* Run Now button spinner ---------------------------------- */
+.cp-run-now.is-loading {
+	opacity: .7;
+	pointer-events: none;
+}
