@@ -208,7 +208,8 @@
 .cp-dot-healthy    { background: var(--cp-healthy); }
 .cp-dot-overdue,
 .cp-dot-failing,
-.cp-dot-fatal      { background: var(--cp-overdue); }
+.cp-dot-fatal,
+.cp-dot-stuck      { background: var(--cp-overdue); }
 .cp-dot-pending,
 .cp-dot-never,
 .cp-dot-incomplete { background: var(--cp-pending); }

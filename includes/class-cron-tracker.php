@@ -29,6 +29,13 @@ class CP_Cron_Tracker {
 	 */
 	private static bool $shutdown_registered = false;
 
+	/**
+	 * A start transient older than this (seconds) is presumed stuck — the
+	 * process almost certainly died outright (OOM, host kill, crash) without
+	 * ever reaching after() or the shutdown handler.
+	 */
+	private const STUCK_THRESHOLD = 120;
+
 	public static function init(): void {
 		add_action( 'init', [ __CLASS__, 'register_trackers' ], 1 );
 	}
@@ -44,6 +51,9 @@ class CP_Cron_Tracker {
 
 		foreach ( $crons as $timestamp => $cron_hooks ) {
 			foreach ( $cron_hooks as $hook => $cron_args ) {
+				self::check_stuck( $hook );
+				CP_Alerts::evaluate_overdue( $hook, (int) $timestamp );
+
 				if ( isset( self::$tracked[ $hook ] ) ) {
 					continue;
 				}
@@ -60,6 +70,28 @@ class CP_Cron_Tracker {
 				}, 9999 );
 			}
 		}
+	}
+
+	/**
+	 * Runs on every page load. Catches the case the shutdown handler can't:
+	 * a process killed outright leaves its start transient sitting there
+	 * until it quietly expires. Flag it as stuck before that happens.
+	 */
+	private static function check_stuck( string $hook ): void {
+		$key   = 'cp_start_' . md5( $hook );
+		$start = get_transient( $key );
+
+		if ( false === $start ) {
+			return;
+		}
+
+		$elapsed = microtime( true ) - (float) $start;
+		if ( $elapsed < self::STUCK_THRESHOLD ) {
+			return;
+		}
+
+		delete_transient( $key );
+		self::log_execution( $hook, 'stuck', (int) round( $elapsed * 1000 ) );
 	}
 
 	/**
@@ -125,7 +157,7 @@ class CP_Cron_Tracker {
 	 * Log a cron execution entry.
 	 *
 	 * @param string      $hook
-	 * @param string      $status   'success' | 'fatal' | 'incomplete'
+	 * @param string      $status   'success' | 'fatal' | 'incomplete' | 'stuck'
 	 * @param int|null    $duration Milliseconds
 	 * @param string|null $message  Error detail, only set for 'fatal'
 	 */
@@ -149,6 +181,8 @@ class CP_Cron_Tracker {
 		}
 
 		update_option( CP_OPTION_LOG, $log, false );
+
+		CP_Alerts::evaluate_failure( $hook, $status );
 	}
 
 	/**

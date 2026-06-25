@@ -91,6 +91,10 @@ class CP_Admin_Page {
 				<?php esc_html_e( 'Cron Pulse', 'cronpulse' ); ?>
 			</h1>
 
+			<?php if ( isset( $_GET['updated'] ) ) : ?>
+				<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Alert settings saved.', 'cronpulse' ); ?></p></div>
+			<?php endif; ?>
+
 			<!-- Summary bar -->
 			<div class="cp-summary-bar">
 				<div class="cp-summary-card cp-total">
@@ -131,6 +135,9 @@ class CP_Admin_Page {
 					<?php if ( ! empty( $log ) ) : ?>
 						<span class="cp-badge"><?php echo esc_html( count( $log ) ); ?></span>
 					<?php endif; ?>
+				</a>
+				<a href="#cp-alerts" class="cp-tab" data-tab="alerts">
+					<?php esc_html_e( 'Alerts', 'cronpulse' ); ?>
 				</a>
 			</nav>
 
@@ -253,6 +260,11 @@ class CP_Admin_Page {
 				<?php endif; ?>
 			</div>
 
+			<!-- Alerts tab -->
+			<div id="cp-alerts" class="cp-tab-panel" style="display:none;">
+				<?php CP_Alerts::render_settings_tab(); ?>
+			</div>
+
 		</div><!-- .cp-wrap -->
 		<?php
 	}
@@ -286,7 +298,7 @@ class CP_Admin_Page {
 
 					if ( (int) $timestamp < $now ) {
 						$status = 'overdue';
-					} elseif ( $last_run && in_array( $last_run['status'], [ 'fatal', 'incomplete' ], true ) ) {
+					} elseif ( $last_run && in_array( $last_run['status'], [ 'fatal', 'incomplete', 'stuck' ], true ) ) {
 						$status = 'failing';
 					} elseif ( $last_run ) {
 						$status = 'healthy';

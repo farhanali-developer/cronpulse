@@ -18,12 +18,15 @@ defined( 'ABSPATH' ) || exit;
 define( 'CP_VERSION',    '1.0.0' );
 define( 'CP_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CP_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
-define( 'CP_OPTION_LOG', 'cp_execution_log' );
-define( 'CP_LOG_LIMIT',  200 );
+define( 'CP_OPTION_LOG',     'cp_execution_log' );
+define( 'CP_LOG_LIMIT',      200 );
+define( 'CP_OPTION_ALERTS',  'cp_alert_settings' );
+define( 'CP_OPTION_STREAKS', 'cp_alert_streaks' );
 
 require_once CP_PLUGIN_DIR . 'includes/class-cron-tracker.php';
 require_once CP_PLUGIN_DIR . 'includes/class-admin-page.php';
 require_once CP_PLUGIN_DIR . 'includes/class-ajax-handler.php';
+require_once CP_PLUGIN_DIR . 'includes/class-alerts.php';
 
 /**
  * Bootstrap on plugins_loaded so all cron hooks are registered.
@@ -32,6 +35,7 @@ add_action( 'plugins_loaded', function () {
 	CP_Cron_Tracker::init();
 	CP_Admin_Page::init();
 	CP_Ajax_Handler::init();
+	CP_Alerts::init();
 } );
 
 /**
@@ -54,4 +58,6 @@ register_deactivation_hook( __FILE__, '__return_true' );
 register_uninstall_hook( __FILE__, 'cp_uninstall' );
 function cp_uninstall() {
 	delete_option( CP_OPTION_LOG );
+	delete_option( CP_OPTION_ALERTS );
+	delete_option( CP_OPTION_STREAKS );
 }

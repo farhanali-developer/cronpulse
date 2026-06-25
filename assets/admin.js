@@ -23,14 +23,27 @@
 	// -------------------------------------------------------------------------
 	// Tabs
 	// -------------------------------------------------------------------------
-	$( '.cp-tab' ).on( 'click', function ( e ) {
-		e.preventDefault();
-		const tab = $( this ).data( 'tab' );
+	function activateTab( tab ) {
+		const $tab = $( '.cp-tab[data-tab="' + tab + '"]' );
+		if ( ! $tab.length ) {
+			return;
+		}
 		$( '.cp-tab' ).removeClass( 'cp-tab-active' );
-		$( this ).addClass( 'cp-tab-active' );
+		$tab.addClass( 'cp-tab-active' );
 		$( '.cp-tab-panel' ).hide();
 		$( '#cp-' + tab ).show();
+	}
+
+	$( '.cp-tab' ).on( 'click', function ( e ) {
+		e.preventDefault();
+		activateTab( $( this ).data( 'tab' ) );
 	} );
+
+	// Land on the right tab after a redirect, e.g. saving Alert settings.
+	const initialTab = window.location.hash.replace( '#cp-', '' );
+	if ( initialTab ) {
+		activateTab( initialTab );
+	}
 
 	// -------------------------------------------------------------------------
 	// Hook search / filter
@@ -74,11 +87,11 @@
 				const $lastRun = $row.find( 'td' ).eq( 4 );
 				$lastRun.text( 'Just now' );
 
-				// Flip status if it was overdue/pending → healthy
-				$row.removeClass( 'cp-status-overdue cp-status-pending' )
+				// Flip status if it was overdue/pending/failing → healthy
+				$row.removeClass( 'cp-status-overdue cp-status-pending cp-status-failing' )
 				    .addClass( 'cp-status-healthy' );
 				$row.find( '.cp-dot' )
-				    .removeClass( 'cp-dot-overdue cp-dot-pending' )
+				    .removeClass( 'cp-dot-overdue cp-dot-pending cp-dot-failing' )
 				    .addClass( 'cp-dot-healthy' );
 				$row.find( '.cp-status-text' ).text( 'Healthy' );
 
