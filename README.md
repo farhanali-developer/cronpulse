@@ -7,12 +7,20 @@ WordPress developers fly blind with WP-Cron — the core tools give you no visib
 ## Features
 
 - **Scheduled Jobs table** — hook name, recurrence schedule, next run time, last run time, execution duration
-- **Status indicators** — Healthy / Overdue / Pending color coding so problems jump out immediately
+- **Status indicators** — Healthy / Overdue / Failing / Pending color coding so problems jump out immediately
 - **Overdue detection** — instantly see jobs that should have fired but haven't
+- **Stuck-job detection** — catches runs that started but never finished (process killed outright), not just fatals
+- **Admin bar badge** — a small warning indicator on every page when something needs attention
 - **Run Now** — manually trigger any cron hook with one click (great for testing)
-- **Execution Log** — persistent log of the last 200 runs with duration and pass/fail status
-- **Hook filter** — search/filter jobs by hook name
+- **Unschedule** — delete a stuck or duplicate scheduled event straight from the dashboard
+- **Sortable columns and pagination** — click Next Run or Duration to sort; 25 jobs per page on large sites
+- **Duration sparkline** — tiny trend line per hook so a creeping-up execution time is visible before it becomes a timeout
+- **Execution Log** — persistent log of run history with duration and pass/fail status; retention is configurable
+- **Hook and status filters** — search by hook name or narrow the table to Overdue/Failing/Healthy/Never Run
 - **DISABLE_WP_CRON warning** — alerts you when automatic cron execution is disabled
+- **Email and webhook alerts** — notify after N consecutive failed runs or extended overdue time, with optional per-job thresholds and one-click Snooze
+- **WP-CLI support** — `wp cronpulse status` for scripting health checks across sites
+- **REST API** — `GET /wp-json/cronpulse/v1/status` for remote dashboards
 - Zero external dependencies — pure PHP and vanilla jQuery
 
 ## Requirements
@@ -36,7 +44,36 @@ Copy (or symlink) the `cronpulse` folder into `wp-content/plugins/`, then activa
 
 ## Usage
 
-Navigate to **Tools → Cron Pulse** to see all scheduled cron jobs, their status, and execution history. Use **Run Now** to manually fire any hook for testing.
+Navigate to **Tools → Cron Pulse** to see all scheduled cron jobs, their status, and execution history. Use **Run Now** to manually fire any hook for testing, or **Delete** to unschedule a stuck/duplicate event.
+
+### Alerts
+
+The **Settings** tab lets you enable email and/or webhook notifications:
+
+- **Failure threshold** — alert after N consecutive failed runs for a job
+- **Overdue threshold** — alert once a job has been overdue for longer than N minutes
+- **Per-job overrides** — set tighter or looser thresholds for specific hooks (e.g. a payment-processing hook vs. a daily cleanup job)
+- **Webhook** — receives a JSON POST for every alert; works with Slack, Discord, or your own endpoint
+- **Snooze** — acknowledge a current incident from the dashboard without disabling alerts globally; resumes normally once that hook recovers and fails again
+
+### WP-CLI
+
+```bash
+wp cronpulse status
+wp cronpulse status --status=overdue
+wp cronpulse status --format=json
+```
+
+Exits with status code `1` if any job is overdue or failing — useful for scripting health checks across multiple sites.
+
+### REST API
+
+```
+GET /wp-json/cronpulse/v1/status
+GET /wp-json/cronpulse/v1/status?status=overdue
+```
+
+Requires `manage_options`. Authenticate with a logged-in session (cookie + nonce) or an [Application Password](https://make.wordpress.org/core/2020/11/05/application-passwords-integration-guide/) for external tools — no SSH or WP-CLI access needed.
 
 ## FAQ
 
@@ -47,10 +84,13 @@ The scheduled run time has passed but the job hasn't fired yet. This can happen 
 No. It fires the hook's callback functions directly without modifying the cron schedule.
 
 **Will this slow down my site?**
-No. Tracker hooks only fire during cron execution (not regular page loads), and overhead is limited to a transient read/write per cron event.
+No. Tracker hooks only fire during cron execution (not regular page loads), and overhead is limited to a transient read/write per cron event. The admin bar badge and overdue detection piggyback on the same per-page-load check the plugin already does, not an additional query.
 
 **Is it compatible with Action Scheduler or WooCommerce?**
 Cron Pulse tracks jobs registered through the standard WordPress `wp_schedule_event()` / `_get_cron_array()` API. Action Scheduler uses its own queue system and is not covered.
+
+**What does Snooze do, exactly?**
+It marks the current failing/overdue incident as acknowledged so no further alert fires for it. Alerts remain enabled globally — the moment that hook recovers and later fails (or becomes overdue) again, alerting resumes for the new incident.
 
 ## License
 

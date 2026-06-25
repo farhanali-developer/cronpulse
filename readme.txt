@@ -2,8 +2,8 @@
 Contributors:      farhanalidev
 Tags:              cron, cron jobs, wp-cron, developer tools, debugging
 Requires at least: 5.8
-Tested up to:      7.0
-Stable tag:        1.1.0
+Tested up to:      6.8
+Stable tag:        1.2.0
 Requires PHP:      7.4
 License:           GPL-2.0-or-later
 License URI:       https://www.gnu.org/licenses/gpl-2.0.html
@@ -19,15 +19,19 @@ WordPress developers fly blind with WP-Cron. The core tools give you no visibili
 = Features =
 
 * **Scheduled Jobs table** — hook name, recurrence schedule, next run time, last run time, execution duration
-* **Status indicators** — Healthy / Overdue / Pending color coding so problems jump out immediately
+* **Status indicators** — Healthy / Overdue / Failing / Pending color coding so problems jump out immediately
 * **Overdue detection** — instantly see jobs that should have fired but haven't
+* **Admin bar badge** — a small warning indicator on every wp-admin (and front-end) page when something needs attention, so you don't have to remember to check the dashboard
 * **Run Now** — manually trigger any cron hook with one click (great for testing)
 * **Unschedule** — delete a stuck or duplicate scheduled event straight from the dashboard
+* **Sortable columns and pagination** — click Next Run or Duration to sort; 25 jobs per page on sites with large schedules
+* **Duration sparkline** — tiny trend line per hook so a creeping-up execution time is visible before it becomes a timeout
 * **Execution Log** — persistent log of run history with duration and pass/fail status; retention is configurable
 * **Hook and status filters** — search by hook name or narrow the table to just Overdue/Failing/Healthy/Never Run
 * **DISABLE_WP_CRON warning** — alerts you when automatic cron execution is disabled
-* **Email and webhook alerts** — get notified after N consecutive failed runs or when a job has been overdue too long
+* **Email and webhook alerts** — get notified after N consecutive failed runs or when a job has been overdue too long, with optional per-job thresholds and a one-click snooze for incidents you already know about
 * **WP-CLI support** — `wp cronpulse status` for scripting health checks across sites
+* **REST API** — `GET /wp-json/cronpulse/v1/status` for remote dashboards, authenticated like any other WP REST route
 * Zero external dependencies — pure PHP and vanilla jQuery
 
 = Who is this for? =
@@ -39,7 +43,7 @@ WordPress developers fly blind with WP-Cron. The core tools give you no visibili
 
 = Privacy =
 
-This plugin stores cron execution data (hook name, timestamp, duration) in the WordPress options table. No data is sent externally. All data is deleted on plugin uninstall.
+This plugin stores cron execution data (hook name, timestamp, duration) in the WordPress options table. No data is sent externally unless you explicitly configure a webhook URL under alert settings, in which case alert payloads are POSTed to that URL. The REST API endpoint is read-only and pull-based — nothing is sent anywhere on its own. All data is deleted on plugin uninstall.
 
 == Installation ==
 
@@ -74,7 +78,28 @@ In the WordPress options table under the key `cp_execution_log`. The entry cap d
 
 Cron Pulse tracks jobs registered through the standard WordPress `wp_schedule_event()` / `_get_cron_array()` API. Action Scheduler uses its own queue system and is not covered.
 
+= How do I authenticate against the REST endpoint? =
+
+The same way as any other WordPress REST route: a logged-in browser session (cookie + nonce), or an Application Password for external tools — Users → Profile → Application Passwords. The requesting user needs the `manage_options` capability.
+
+= What does "Snooze" do? =
+
+It acknowledges the current incident for that hook so no further alert is sent for it, without turning off alerts globally. The moment the job recovers and later fails (or becomes overdue) again, alerting resumes normally for that new incident.
+
+= Why does the admin bar badge sometimes not appear right away? =
+
+It's evaluated on every page load along with everything else the plugin tracks, so it only updates when you load a page — there's no background process polling for it.
+
 == Changelog ==
+
+= 1.2.0 =
+* Added admin bar badge showing a count of overdue/failing jobs on any page
+* Added REST API endpoint: `GET /wp-json/cronpulse/v1/status`
+* Added per-job alert threshold overrides (Settings tab)
+* Added sortable Next Run / Duration columns
+* Added per-hook duration sparkline
+* Added pagination to the Scheduled Jobs table (25 per page)
+* Added one-click Snooze to acknowledge a failing/overdue job without disabling alerts globally
 
 = 1.1.0 =
 * Added stuck-job detection (process killed without completing, not just fatals)
@@ -88,6 +113,9 @@ Cron Pulse tracks jobs registered through the standard WordPress `wp_schedule_ev
 * Initial release
 
 == Upgrade Notice ==
+
+= 1.2.0 =
+No action needed. New per-job alert overrides and REST endpoint are opt-in.
 
 = 1.1.0 =
 No action needed. New Settings tab lets you configure alerts and log retention.
