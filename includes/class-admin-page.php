@@ -70,11 +70,14 @@ class CP_Admin_Page {
 		// Summary counts
 		$total   = count( $jobs );
 		$overdue = 0;
+		$failing = 0;
 		$healthy = 0;
 		$never   = 0;
 		foreach ( $jobs as $job ) {
 			if ( $job['status'] === 'overdue' ) {
 				$overdue++;
+			} elseif ( $job['status'] === 'failing' ) {
+				$failing++;
 			} elseif ( $job['status'] === 'healthy' ) {
 				$healthy++;
 			} else {
@@ -101,6 +104,10 @@ class CP_Admin_Page {
 				<div class="cp-summary-card cp-overdue">
 					<span class="cp-num"><?php echo esc_html( $overdue ); ?></span>
 					<span class="cp-label"><?php esc_html_e( 'Overdue', 'cronpulse' ); ?></span>
+				</div>
+				<div class="cp-summary-card cp-failing">
+					<span class="cp-num"><?php echo esc_html( $failing ); ?></span>
+					<span class="cp-label"><?php esc_html_e( 'Failing', 'cronpulse' ); ?></span>
 				</div>
 				<div class="cp-summary-card cp-never">
 					<span class="cp-num"><?php echo esc_html( $never ); ?></span>
@@ -229,10 +236,11 @@ class CP_Admin_Page {
 						$entry_hook      = (string) $entry['hook'];
 						$entry_timestamp = (int) $entry['timestamp'];
 						$entry_duration  = isset( $entry['duration'] ) ? absint( $entry['duration'] ) . ' ms' : '—';
+						$entry_message   = isset( $entry['message'] ) ? (string) $entry['message'] : '';
 					?>
 					<tr class="cp-row cp-status-<?php echo esc_attr( $entry_status ); ?>">
 						<td>
-							<span class="cp-dot cp-dot-<?php echo esc_attr( $entry_status ); ?>"></span>
+							<span class="cp-dot cp-dot-<?php echo esc_attr( $entry_status ); ?>" title="<?php echo esc_attr( $entry_message ); ?>"></span>
 							<span class="cp-status-text"><?php echo esc_html( ucfirst( $entry_status ) ); ?></span>
 						</td>
 						<td><code><?php echo esc_html( $entry_hook ); ?></code></td>
@@ -278,6 +286,8 @@ class CP_Admin_Page {
 
 					if ( (int) $timestamp < $now ) {
 						$status = 'overdue';
+					} elseif ( $last_run && in_array( $last_run['status'], [ 'fatal', 'incomplete' ], true ) ) {
+						$status = 'failing';
 					} elseif ( $last_run ) {
 						$status = 'healthy';
 					} else {
@@ -296,9 +306,9 @@ class CP_Admin_Page {
 		}
 
 		usort( $jobs, static function ( $a, $b ) {
-			$order = [ 'overdue' => 0, 'pending' => 1, 'healthy' => 2 ];
-			$oa    = $order[ $a['status'] ] ?? 3;
-			$ob    = $order[ $b['status'] ] ?? 3;
+			$order = [ 'overdue' => 0, 'failing' => 1, 'pending' => 2, 'healthy' => 3 ];
+			$oa    = $order[ $a['status'] ] ?? 4;
+			$ob    = $order[ $b['status'] ] ?? 4;
 			if ( $oa !== $ob ) {
 				return $oa - $ob;
 			}

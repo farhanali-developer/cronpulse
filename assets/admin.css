@@ -70,6 +70,7 @@
 
 .cp-summary-card.cp-healthy .cp-num { color: var(--cp-healthy); }
 .cp-summary-card.cp-overdue .cp-num { color: var(--cp-overdue); }
+.cp-summary-card.cp-failing .cp-num { color: var(--cp-overdue); }
 .cp-summary-card.cp-never   .cp-num { color: var(--cp-pending); }
 
 /* Inline notice ------------------------------------------- */
@@ -188,6 +189,9 @@
 .cp-table tbody .cp-status-pending td:first-child {
 	border-left: 3px solid var(--cp-pending);
 }
+.cp-table tbody .cp-status-failing td:first-child {
+	border-left: 3px solid var(--cp-overdue);
+}
 
 /* Status dots --------------------------------------------- */
 .cp-dot {
@@ -198,12 +202,18 @@
 	margin-right: 5px;
 	flex-shrink: 0;
 }
-.cp-dot-healthy { background: var(--cp-healthy); }
-.cp-dot-overdue { background: var(--cp-overdue); }
+.cp-dot[title]:not([title=""]) {
+	cursor: help;
+}
+.cp-dot-healthy    { background: var(--cp-healthy); }
+.cp-dot-overdue,
+.cp-dot-failing,
+.cp-dot-fatal      { background: var(--cp-overdue); }
 .cp-dot-pending,
-.cp-dot-never   { background: var(--cp-pending); }
-.cp-dot-success { background: var(--cp-healthy); }
-.cp-dot-error   { background: var(--cp-overdue); }
+.cp-dot-never,
+.cp-dot-incomplete { background: var(--cp-pending); }
+.cp-dot-success    { background: var(--cp-healthy); }
+.cp-dot-error      { background: var(--cp-overdue); }
 
 /* Hook cell ----------------------------------------------- */
 .cp-hook code {

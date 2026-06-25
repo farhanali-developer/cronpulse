@@ -16,6 +16,19 @@ class CP_Cron_Tracker {
 	 */
 	private static array $tracked = [];
 
+	/**
+	 * Hooks currently executing in this request — removed once after() runs.
+	 * Anything still here at shutdown started but never finished.
+	 *
+	 * @var array<string, bool>
+	 */
+	private static array $in_flight = [];
+
+	/**
+	 * Whether the shutdown handler has already been registered this request.
+	 */
+	private static bool $shutdown_registered = false;
+
 	public static function init(): void {
 		add_action( 'init', [ __CLASS__, 'register_trackers' ], 1 );
 	}
@@ -54,12 +67,21 @@ class CP_Cron_Tracker {
 	 */
 	public static function before( string $hook ): void {
 		set_transient( 'cp_start_' . md5( $hook ), microtime( true ), 300 );
+		self::$in_flight[ $hook ] = true;
+
+		// Registered once per request; catches fatals/timeouts that never reach after().
+		if ( ! self::$shutdown_registered ) {
+			self::$shutdown_registered = true;
+			register_shutdown_function( [ __CLASS__, 'handle_shutdown' ] );
+		}
 	}
 
 	/**
 	 * Called immediately after the cron hook fires.
 	 */
 	public static function after( string $hook ): void {
+		unset( self::$in_flight[ $hook ] );
+
 		$key   = 'cp_start_' . md5( $hook );
 		$start = get_transient( $key );
 		delete_transient( $key );
@@ -70,13 +92,44 @@ class CP_Cron_Tracker {
 	}
 
 	/**
+	 * Runs at PHP shutdown. Any hook still marked in-flight here started but
+	 * never reached after() — it fataled, timed out, or the process was killed.
+	 * Without this, that run would just vanish instead of being logged.
+	 */
+	public static function handle_shutdown(): void {
+		if ( empty( self::$in_flight ) ) {
+			return;
+		}
+
+		$error    = error_get_last();
+		$fatal_types = [ E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR, E_RECOVERABLE_ERROR ];
+		$is_fatal = $error && in_array( $error['type'], $fatal_types, true );
+
+		foreach ( array_keys( self::$in_flight ) as $hook ) {
+			$key   = 'cp_start_' . md5( $hook );
+			$start = get_transient( $key );
+			delete_transient( $key );
+
+			$duration = $start ? round( ( microtime( true ) - (float) $start ) * 1000 ) : null;
+
+			if ( $is_fatal ) {
+				$message = sprintf( '%s in %s on line %d', $error['message'], $error['file'], $error['line'] );
+				self::log_execution( $hook, 'fatal', $duration, $message );
+			} else {
+				self::log_execution( $hook, 'incomplete', $duration );
+			}
+		}
+	}
+
+	/**
 	 * Log a cron execution entry.
 	 *
-	 * @param string   $hook
-	 * @param string   $status   'success' | 'error'
-	 * @param int|null $duration Milliseconds
+	 * @param string      $hook
+	 * @param string      $status   'success' | 'fatal' | 'incomplete'
+	 * @param int|null    $duration Milliseconds
+	 * @param string|null $message  Error detail, only set for 'fatal'
 	 */
-	public static function log_execution( string $hook, string $status, ?int $duration ): void {
+	public static function log_execution( string $hook, string $status, ?int $duration, ?string $message = null ): void {
 		$log = get_option( CP_OPTION_LOG, [] );
 
 		if ( ! is_array( $log ) ) {
@@ -87,6 +140,7 @@ class CP_Cron_Tracker {
 			'hook'      => $hook,
 			'status'    => $status,
 			'duration'  => $duration,
+			'message'   => $message,
 			'timestamp' => time(),
 		] );
 
