@@ -3,16 +3,18 @@
  * CP_Ajax_Handler
  *
  * Handles AJAX requests for:
- *  - cp_run_now   — manually trigger a cron hook
- *  - cp_clear_log — wipe the execution log
+ *  - cp_run_now     — manually trigger a cron hook
+ *  - cp_clear_log   — wipe the execution log
+ *  - cp_unschedule  — remove a scheduled event from WP-Cron
  */
 defined( 'ABSPATH' ) || exit;
 
 class CP_Ajax_Handler {
 
 	public static function init(): void {
-		add_action( 'wp_ajax_cp_run_now',   [ __CLASS__, 'handle_run_now' ] );
-		add_action( 'wp_ajax_cp_clear_log', [ __CLASS__, 'handle_clear_log' ] );
+		add_action( 'wp_ajax_cp_run_now',    [ __CLASS__, 'handle_run_now' ] );
+		add_action( 'wp_ajax_cp_clear_log',  [ __CLASS__, 'handle_clear_log' ] );
+		add_action( 'wp_ajax_cp_unschedule', [ __CLASS__, 'handle_unschedule' ] );
 	}
 
 	// -------------------------------------------------------------------------
@@ -61,6 +63,51 @@ class CP_Ajax_Handler {
 				$duration
 			),
 			'duration' => $duration,
+		] );
+	}
+
+	// -------------------------------------------------------------------------
+
+	public static function handle_unschedule(): void {
+		check_ajax_referer( 'cp_nonce', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( [ 'message' => __( 'Unauthorized.', 'cronpulse' ) ], 403 );
+			return;
+		}
+
+		$hook      = sanitize_key( wp_unslash( $_POST['hook'] ?? '' ) );
+		$timestamp = absint( $_POST['timestamp'] ?? 0 );
+		$sig       = sanitize_text_field( wp_unslash( $_POST['sig'] ?? '' ) );
+
+		if ( empty( $hook ) || empty( $timestamp ) || empty( $sig ) ) {
+			wp_send_json_error( [ 'message' => __( 'Invalid job.', 'cronpulse' ) ] );
+			return;
+		}
+
+		// Look up the event's own stored args rather than trusting anything
+		// reconstructed client-side — wp_unschedule_event() matches on the
+		// exact args array, and a JSON round-trip can change scalar types.
+		$crons = _get_cron_array();
+		if ( empty( $crons[ $timestamp ][ $hook ][ $sig ] ) ) {
+			wp_send_json_error( [ 'message' => __( 'That job is no longer scheduled.', 'cronpulse' ) ] );
+			return;
+		}
+
+		$args   = $crons[ $timestamp ][ $hook ][ $sig ]['args'] ?? [];
+		$result = wp_unschedule_event( $timestamp, $hook, $args );
+
+		if ( false === $result || is_wp_error( $result ) ) {
+			wp_send_json_error( [ 'message' => __( 'Could not unschedule the job.', 'cronpulse' ) ] );
+			return;
+		}
+
+		wp_send_json_success( [
+			'message' => sprintf(
+				/* translators: %s = cron hook name */
+				__( 'Unscheduled "%s".', 'cronpulse' ),
+				esc_html( $hook )
+			),
 		] );
 	}
 

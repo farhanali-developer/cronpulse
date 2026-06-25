@@ -15,18 +15,22 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CP_VERSION',    '1.0.0' );
-define( 'CP_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
-define( 'CP_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+define( 'CP_VERSION',        '1.0.0' );
+define( 'CP_PLUGIN_DIR',     plugin_dir_path( __FILE__ ) );
+define( 'CP_PLUGIN_URL',     plugin_dir_url( __FILE__ ) );
 define( 'CP_OPTION_LOG',     'cp_execution_log' );
-define( 'CP_LOG_LIMIT',      200 );
-define( 'CP_OPTION_ALERTS',  'cp_alert_settings' );
+define( 'CP_LOG_LIMIT',      200 ); // default log retention; overridable via the Settings tab
+define( 'CP_OPTION_ALERTS',  'cp_alert_settings' ); // also holds general settings, e.g. log retention
 define( 'CP_OPTION_STREAKS', 'cp_alert_streaks' );
 
 require_once CP_PLUGIN_DIR . 'includes/class-cron-tracker.php';
 require_once CP_PLUGIN_DIR . 'includes/class-admin-page.php';
 require_once CP_PLUGIN_DIR . 'includes/class-ajax-handler.php';
 require_once CP_PLUGIN_DIR . 'includes/class-alerts.php';
+
+if ( defined( 'WP_CLI' ) && WP_CLI ) {
+	require_once CP_PLUGIN_DIR . 'includes/class-cli.php';
+}
 
 /**
  * Bootstrap on plugins_loaded so all cron hooks are registered.

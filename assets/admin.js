@@ -46,15 +46,26 @@
 	}
 
 	// -------------------------------------------------------------------------
-	// Hook search / filter
+	// Hook search / status filter
 	// -------------------------------------------------------------------------
-	$( '#cp-search' ).on( 'input', function () {
-		const q = $( this ).val().toLowerCase().trim();
+	function applyFilters() {
+		const q      = $( '#cp-search' ).val().toLowerCase().trim();
+		const status = $( '#cp-status-filter' ).val();
+
 		$( '.cp-row[data-hook]' ).each( function () {
-			const hook = $( this ).data( 'hook' ).toLowerCase();
-			$( this ).toggle( ! q || hook.includes( q ) );
+			const $row    = $( this );
+			const hook    = $row.data( 'hook' ).toLowerCase();
+			const rowStat = $row.data( 'status' );
+
+			const matchesText   = ! q || hook.includes( q );
+			const matchesStatus = ! status || rowStat === status;
+
+			$row.toggle( matchesText && matchesStatus );
 		} );
-	} );
+	}
+
+	$( '#cp-search' ).on( 'input', applyFilters );
+	$( '#cp-status-filter' ).on( 'change', applyFilters );
 
 	// -------------------------------------------------------------------------
 	// Run Now
@@ -89,7 +100,8 @@
 
 				// Flip status if it was overdue/pending/failing → healthy
 				$row.removeClass( 'cp-status-overdue cp-status-pending cp-status-failing' )
-				    .addClass( 'cp-status-healthy' );
+				    .addClass( 'cp-status-healthy' )
+				    .attr( 'data-status', 'healthy' );
 				$row.find( '.cp-dot' )
 				    .removeClass( 'cp-dot-overdue cp-dot-pending cp-dot-failing' )
 				    .addClass( 'cp-dot-healthy' );
@@ -132,6 +144,44 @@
 		} )
 		.fail( function () {
 			flash( cpData.i18n.error, 'error' );
+		} );
+	} );
+
+	// -------------------------------------------------------------------------
+	// Unschedule
+	// -------------------------------------------------------------------------
+	$( document ).on( 'click', '.cp-unschedule', function () {
+		const $btn = $( this );
+		const hook = $btn.data( 'hook' );
+
+		const confirmMsg = cpData.i18n.confirmUnschedule.replace( '%s', hook );
+		if ( ! window.confirm( confirmMsg ) ) {
+			return;
+		}
+
+		$btn.prop( 'disabled', true );
+
+		$.post( cpData.ajaxUrl, {
+			action    : 'cp_unschedule',
+			nonce     : cpData.nonce,
+			hook      : hook,
+			timestamp : $btn.data( 'timestamp' ),
+			sig       : $btn.data( 'sig' ),
+		} )
+		.done( function ( res ) {
+			if ( res.success ) {
+				flash( res.data.message, 'success' );
+				$btn.closest( 'tr' ).fadeOut( 200, function () {
+					$( this ).remove();
+				} );
+			} else {
+				flash( res.data.message || cpData.i18n.error, 'error' );
+				$btn.prop( 'disabled', false );
+			}
+		} )
+		.fail( function () {
+			flash( cpData.i18n.error, 'error' );
+			$btn.prop( 'disabled', false );
 		} );
 	} );
 

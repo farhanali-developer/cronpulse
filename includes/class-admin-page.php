@@ -44,12 +44,13 @@ class CP_Admin_Page {
 			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
 			'nonce'   => wp_create_nonce( 'cp_nonce' ),
 			'i18n'    => [
-				'running'      => __( 'Running…', 'cronpulse' ),
-				'success'      => __( 'Triggered successfully', 'cronpulse' ),
-				'error'        => __( 'Error triggering job', 'cronpulse' ),
-				'runNow'       => __( 'Run Now', 'cronpulse' ),
-				'justNow'      => __( 'Just now', 'cronpulse' ),
-				'confirmClear' => __( 'Clear the entire execution log? This cannot be undone.', 'cronpulse' ),
+				'running'           => __( 'Running…', 'cronpulse' ),
+				'success'           => __( 'Triggered successfully', 'cronpulse' ),
+				'error'             => __( 'Error triggering job', 'cronpulse' ),
+				'runNow'            => __( 'Run Now', 'cronpulse' ),
+				'justNow'           => __( 'Just now', 'cronpulse' ),
+				'confirmClear'      => __( 'Clear the entire execution log? This cannot be undone.', 'cronpulse' ),
+				'confirmUnschedule' => __( 'Unschedule "%s"? If something else re-schedules it, it may come back.', 'cronpulse' ),
 			],
 		] );
 	}
@@ -92,7 +93,7 @@ class CP_Admin_Page {
 			</h1>
 
 			<?php if ( isset( $_GET['updated'] ) ) : ?>
-				<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Alert settings saved.', 'cronpulse' ); ?></p></div>
+				<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Settings saved.', 'cronpulse' ); ?></p></div>
 			<?php endif; ?>
 
 			<!-- Summary bar -->
@@ -137,7 +138,7 @@ class CP_Admin_Page {
 					<?php endif; ?>
 				</a>
 				<a href="#cp-alerts" class="cp-tab" data-tab="alerts">
-					<?php esc_html_e( 'Alerts', 'cronpulse' ); ?>
+					<?php esc_html_e( 'Settings', 'cronpulse' ); ?>
 				</a>
 			</nav>
 
@@ -148,6 +149,13 @@ class CP_Admin_Page {
 				<?php else : ?>
 				<div class="cp-search-bar">
 					<input type="text" id="cp-search" placeholder="<?php esc_attr_e( 'Filter by hook name…', 'cronpulse' ); ?>" />
+					<select id="cp-status-filter">
+						<option value=""><?php esc_html_e( 'All statuses', 'cronpulse' ); ?></option>
+						<option value="overdue"><?php esc_html_e( 'Overdue', 'cronpulse' ); ?></option>
+						<option value="failing"><?php esc_html_e( 'Failing', 'cronpulse' ); ?></option>
+						<option value="healthy"><?php esc_html_e( 'Healthy', 'cronpulse' ); ?></option>
+						<option value="pending"><?php esc_html_e( 'Never Run', 'cronpulse' ); ?></option>
+					</select>
 				</div>
 				<table class="cp-table">
 					<thead>
@@ -169,7 +177,7 @@ class CP_Admin_Page {
 						$last_run = CP_Cron_Tracker::get_last_run( $job['hook'] );
 						$duration = isset( $last_run['duration'] ) ? absint( $last_run['duration'] ) . ' ms' : '—';
 					?>
-					<tr class="cp-row cp-status-<?php echo esc_attr( $job['status'] ); ?>" data-hook="<?php echo esc_attr( $job['hook'] ); ?>">
+					<tr class="cp-row cp-status-<?php echo esc_attr( $job['status'] ); ?>" data-hook="<?php echo esc_attr( $job['hook'] ); ?>" data-status="<?php echo esc_attr( $job['status'] ); ?>">
 						<td>
 							<span class="cp-dot cp-dot-<?php echo esc_attr( $job['status'] ); ?>" title="<?php echo esc_attr( ucfirst( $job['status'] ) ); ?>"></span>
 							<span class="cp-status-text"><?php echo esc_html( ucfirst( $job['status'] ) ); ?></span>
@@ -198,6 +206,12 @@ class CP_Admin_Page {
 								data-hook="<?php echo esc_attr( $job['hook'] ); ?>"
 								data-args="<?php echo esc_attr( wp_json_encode( $job['args'] ) ); ?>"
 							><?php esc_html_e( 'Run Now', 'cronpulse' ); ?></button>
+							<button
+								class="button button-small button-link-delete cp-unschedule"
+								data-hook="<?php echo esc_attr( $job['hook'] ); ?>"
+								data-timestamp="<?php echo esc_attr( $job['next_run'] ); ?>"
+								data-sig="<?php echo esc_attr( $job['sig'] ); ?>"
+							><?php esc_html_e( 'Delete', 'cronpulse' ); ?></button>
 						</td>
 					</tr>
 					<?php endforeach; ?>
@@ -215,9 +229,10 @@ class CP_Admin_Page {
 					<button class="button cp-clear-log"><?php esc_html_e( 'Clear Log', 'cronpulse' ); ?></button>
 					<span class="cp-log-count">
 						<?php printf(
-							/* translators: %d = number of log entries stored */
-							esc_html__( '%d entries (newest first, max 200)', 'cronpulse' ),
-							count( $log )
+							/* translators: 1: number of log entries stored, 2: configured retention limit */
+							esc_html__( '%1$d entries (newest first, max %2$d)', 'cronpulse' ),
+							count( $log ),
+							CP_Alerts::get_settings()['log_retention']
 						); ?>
 					</span>
 				</div>
@@ -275,8 +290,9 @@ class CP_Admin_Page {
 
 	/**
 	 * Build a flat list of all scheduled cron jobs with status.
+	 * Public so CP_CLI_Command can reuse the same status logic.
 	 */
-	private static function get_jobs(): array {
+	public static function get_jobs(): array {
 		$crons = _get_cron_array();
 		if ( empty( $crons ) || ! is_array( $crons ) ) {
 			return [];
@@ -293,7 +309,7 @@ class CP_Admin_Page {
 				if ( ! is_array( $events ) ) {
 					continue;
 				}
-				foreach ( $events as $event ) {
+				foreach ( $events as $sig => $event ) {
 					$last_run = CP_Cron_Tracker::get_last_run( $hook );
 
 					if ( (int) $timestamp < $now ) {
@@ -311,6 +327,7 @@ class CP_Admin_Page {
 						'next_run' => (int) $timestamp,
 						'schedule' => $event['schedule'] ?? '',
 						'args'     => $event['args'] ?? [],
+						'sig'      => (string) $sig,
 						'status'   => $status,
 					];
 				}

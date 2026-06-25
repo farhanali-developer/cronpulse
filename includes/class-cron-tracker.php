@@ -50,7 +50,7 @@ class CP_Cron_Tracker {
 		}
 
 		foreach ( $crons as $timestamp => $cron_hooks ) {
-			foreach ( $cron_hooks as $hook => $cron_args ) {
+			foreach ( array_keys( $cron_hooks ) as $hook ) {
 				self::check_stuck( $hook );
 				CP_Alerts::evaluate_overdue( $hook, (int) $timestamp );
 
@@ -176,8 +176,9 @@ class CP_Cron_Tracker {
 			'timestamp' => time(),
 		] );
 
-		if ( count( $log ) > CP_LOG_LIMIT ) {
-			$log = array_slice( $log, 0, CP_LOG_LIMIT );
+		$limit = CP_Alerts::get_settings()['log_retention'];
+		if ( count( $log ) > $limit ) {
+			$log = array_slice( $log, 0, $limit );
 		}
 
 		update_option( CP_OPTION_LOG, $log, false );

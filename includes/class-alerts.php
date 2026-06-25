@@ -27,6 +27,7 @@ class CP_Alerts {
 			'overdue_minutes'   => 30,
 			'email'             => '',
 			'webhook'           => '',
+			'log_retention'     => CP_LOG_LIMIT,
 		];
 
 		$settings = get_option( CP_OPTION_ALERTS, [] );
@@ -53,6 +54,7 @@ class CP_Alerts {
 			'overdue_minutes'   => max( 1, absint( $_POST['cp_overdue_minutes'] ?? 30 ) ),
 			'email'             => is_email( $email ) ? $email : '',
 			'webhook'           => esc_url_raw( wp_unslash( $_POST['cp_alert_webhook'] ?? '' ) ),
+			'log_retention'     => min( 5000, max( 10, absint( $_POST['cp_log_retention'] ?? CP_LOG_LIMIT ) ) ),
 		], false );
 
 		$redirect = add_query_arg( 'updated', '1', admin_url( 'tools.php?page=cronpulse' ) ) . '#cp-alerts';
@@ -199,6 +201,8 @@ class CP_Alerts {
 		<form method="post" action="">
 			<?php wp_nonce_field( 'cp_save_alerts', 'cp_alerts_nonce' ); ?>
 			<input type="hidden" name="cp_alerts_submit" value="1" />
+
+			<h2><?php esc_html_e( 'Alerts', 'cronpulse' ); ?></h2>
 			<table class="form-table" role="presentation">
 				<tr>
 					<th scope="row">
@@ -248,7 +252,21 @@ class CP_Alerts {
 					</td>
 				</tr>
 			</table>
-			<?php submit_button( __( 'Save Alert Settings', 'cronpulse' ) ); ?>
+
+			<h2><?php esc_html_e( 'General', 'cronpulse' ); ?></h2>
+			<table class="form-table" role="presentation">
+				<tr>
+					<th scope="row">
+						<label for="cp-log-retention"><?php esc_html_e( 'Log retention', 'cronpulse' ); ?></label>
+					</th>
+					<td>
+						<input type="number" min="10" max="5000" id="cp-log-retention" name="cp_log_retention" value="<?php echo esc_attr( $settings['log_retention'] ); ?>" class="small-text" />
+						<p class="description"><?php esc_html_e( 'Number of execution log entries to keep (10–5000).', 'cronpulse' ); ?></p>
+					</td>
+				</tr>
+			</table>
+
+			<?php submit_button( __( 'Save Settings', 'cronpulse' ) ); ?>
 		</form>
 		<?php
 	}
