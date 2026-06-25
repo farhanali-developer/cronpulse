@@ -219,6 +219,33 @@ class CP_Cron_Tracker {
 	}
 
 	/**
+	 * Return the last $limit recorded durations for a hook, oldest first
+	 * (left-to-right reading order for a sparkline). Skips runs that have
+	 * no duration (e.g. a 'stuck' entry whose start time already expired).
+	 *
+	 * @param string $hook
+	 * @param int    $limit
+	 * @return int[] Milliseconds
+	 */
+	public static function get_recent_durations( string $hook, int $limit = 10 ): array {
+		$durations = [];
+
+		foreach ( self::get_log() as $entry ) {
+			if ( ( $entry['hook'] ?? '' ) !== $hook || ! isset( $entry['duration'] ) || null === $entry['duration'] ) {
+				continue;
+			}
+
+			$durations[] = (int) $entry['duration'];
+
+			if ( count( $durations ) >= $limit ) {
+				break;
+			}
+		}
+
+		return array_reverse( $durations );
+	}
+
+	/**
 	 * Clear the entire log.
 	 */
 	public static function clear_log(): void {

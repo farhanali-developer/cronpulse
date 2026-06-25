@@ -181,6 +181,49 @@
 	white-space: nowrap;
 }
 
+/* Sortable column headers ---------------------------------- */
+.cp-table thead th.cp-sortable {
+	cursor: pointer;
+	user-select: none;
+}
+.cp-table thead th.cp-sortable:hover {
+	color: #2271b1;
+}
+.cp-table thead th.cp-sortable::after {
+	content: '⇕';
+	display: inline-block;
+	margin-left: 5px;
+	opacity: .35;
+	font-size: 0.8em;
+}
+.cp-table thead th.cp-sortable.cp-sort-asc::after {
+	content: '↑';
+	opacity: 1;
+}
+.cp-table thead th.cp-sortable.cp-sort-desc::after {
+	content: '↓';
+	opacity: 1;
+}
+
+/* Duration sparkline ----------------------------------------- */
+.cp-sparkline {
+	vertical-align: middle;
+	margin-left: 6px;
+	color: var(--cp-muted);
+}
+
+/* Pagination -------------------------------------------------- */
+.cp-pagination {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-top: 12px;
+}
+.cp-pagination #cp-page-info {
+	font-size: 0.8rem;
+	color: var(--cp-muted);
+}
+
 .cp-table tbody tr:hover {
 	background: #f9f9fb;
 }
@@ -288,7 +331,8 @@
 }
 
 /* Action buttons -------------------------------------------- */
-.cp-unschedule {
+.cp-unschedule,
+.cp-snooze {
 	margin-left: 4px;
 }
 

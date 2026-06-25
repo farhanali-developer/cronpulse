@@ -3,7 +3,7 @@
  * Plugin Name: Cron Pulse
  * Plugin URI:  https://wordpress.org/plugins/cronpulse/
  * Description: A visual dashboard to monitor, debug, and manually trigger WordPress cron jobs. See schedules, last run times, execution duration, and pass/fail status at a glance.
- * Version:     1.1.0
+ * Version:     1.2.0
  * Author:      Farhan Ali
  * Author URI:  https://farhanali.me
  * License:     GPL-2.0-or-later
@@ -15,7 +15,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CP_VERSION',        '1.1.0' );
+define( 'CP_VERSION',        '1.2.0' );
 define( 'CP_PLUGIN_DIR',     plugin_dir_path( __FILE__ ) );
 define( 'CP_PLUGIN_URL',     plugin_dir_url( __FILE__ ) );
 define( 'CP_OPTION_LOG',     'cp_execution_log' );
@@ -27,6 +27,8 @@ require_once CP_PLUGIN_DIR . 'includes/class-cron-tracker.php';
 require_once CP_PLUGIN_DIR . 'includes/class-admin-page.php';
 require_once CP_PLUGIN_DIR . 'includes/class-ajax-handler.php';
 require_once CP_PLUGIN_DIR . 'includes/class-alerts.php';
+require_once CP_PLUGIN_DIR . 'includes/class-admin-bar.php';
+require_once CP_PLUGIN_DIR . 'includes/class-rest.php';
 
 if ( defined( 'WP_CLI' ) && WP_CLI ) {
 	require_once CP_PLUGIN_DIR . 'includes/class-cli.php';
@@ -40,6 +42,8 @@ add_action( 'plugins_loaded', function () {
 	CP_Admin_Page::init();
 	CP_Ajax_Handler::init();
 	CP_Alerts::init();
+	CP_Admin_Bar::init();
+	CP_REST_Controller::init();
 } );
 
 /**

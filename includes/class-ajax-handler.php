@@ -6,6 +6,7 @@
  *  - cp_run_now     — manually trigger a cron hook
  *  - cp_clear_log   — wipe the execution log
  *  - cp_unschedule  — remove a scheduled event from WP-Cron
+ *  - cp_snooze      — acknowledge the current failing/overdue incident for a hook
  */
 defined( 'ABSPATH' ) || exit;
 
@@ -15,6 +16,7 @@ class CP_Ajax_Handler {
 		add_action( 'wp_ajax_cp_run_now',    [ __CLASS__, 'handle_run_now' ] );
 		add_action( 'wp_ajax_cp_clear_log',  [ __CLASS__, 'handle_clear_log' ] );
 		add_action( 'wp_ajax_cp_unschedule', [ __CLASS__, 'handle_unschedule' ] );
+		add_action( 'wp_ajax_cp_snooze',     [ __CLASS__, 'handle_snooze' ] );
 	}
 
 	// -------------------------------------------------------------------------
@@ -106,6 +108,33 @@ class CP_Ajax_Handler {
 			'message' => sprintf(
 				/* translators: %s = cron hook name */
 				__( 'Unscheduled "%s".', 'cronpulse' ),
+				esc_html( $hook )
+			),
+		] );
+	}
+
+	// -------------------------------------------------------------------------
+
+	public static function handle_snooze(): void {
+		check_ajax_referer( 'cp_nonce', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( [ 'message' => __( 'Unauthorized.', 'cronpulse' ) ], 403 );
+			return;
+		}
+
+		$hook = sanitize_key( wp_unslash( $_POST['hook'] ?? '' ) );
+		if ( empty( $hook ) ) {
+			wp_send_json_error( [ 'message' => __( 'Invalid hook name.', 'cronpulse' ) ] );
+			return;
+		}
+
+		CP_Alerts::snooze( $hook );
+
+		wp_send_json_success( [
+			'message' => sprintf(
+				/* translators: %s = cron hook name */
+				__( 'Alerts snoozed for "%s" until the next new incident.', 'cronpulse' ),
 				esc_html( $hook )
 			),
 		] );

@@ -28,11 +28,26 @@ class CP_Alerts {
 			'email'             => '',
 			'webhook'           => '',
 			'log_retention'     => CP_LOG_LIMIT,
+			'per_job'           => [],
 		];
 
 		$settings = get_option( CP_OPTION_ALERTS, [] );
 
 		return wp_parse_args( is_array( $settings ) ? $settings : [], $defaults );
+	}
+
+	/**
+	 * Resolve the effective thresholds for a hook: its own override, if one
+	 * is configured, otherwise the global defaults.
+	 */
+	public static function get_thresholds_for( string $hook ): array {
+		$settings = self::get_settings();
+		$override = $settings['per_job'][ $hook ] ?? [];
+
+		return [
+			'failure_threshold' => $override['failure_threshold'] ?? $settings['failure_threshold'],
+			'overdue_minutes'   => $override['overdue_minutes'] ?? $settings['overdue_minutes'],
+		];
 	}
 
 	public static function maybe_save_settings(): void {
@@ -55,11 +70,51 @@ class CP_Alerts {
 			'email'             => is_email( $email ) ? $email : '',
 			'webhook'           => esc_url_raw( wp_unslash( $_POST['cp_alert_webhook'] ?? '' ) ),
 			'log_retention'     => min( 5000, max( 10, absint( $_POST['cp_log_retention'] ?? CP_LOG_LIMIT ) ) ),
+			'per_job'           => self::parse_overrides_from_post(),
 		], false );
 
 		$redirect = add_query_arg( 'updated', '1', admin_url( 'tools.php?page=cronpulse' ) ) . '#cp-alerts';
 		wp_safe_redirect( $redirect );
 		exit;
+	}
+
+	/**
+	 * Rebuild the per-job override map from the settings form's parallel
+	 * arrays (existing rows) plus the single "add new" row, if filled in.
+	 */
+	private static function parse_overrides_from_post(): array {
+		$per_job = [];
+
+		$hooks      = (array) ( $_POST['cp_override_hook'] ?? [] );
+		$failures   = (array) ( $_POST['cp_override_failure'] ?? [] );
+		$overdues   = (array) ( $_POST['cp_override_overdue'] ?? [] );
+		$removed    = array_flip( (array) ( $_POST['cp_override_remove'] ?? [] ) );
+
+		foreach ( $hooks as $i => $raw_hook ) {
+			if ( isset( $removed[ $i ] ) ) {
+				continue;
+			}
+
+			$hook = sanitize_key( wp_unslash( $raw_hook ) );
+			if ( empty( $hook ) ) {
+				continue;
+			}
+
+			$per_job[ $hook ] = [
+				'failure_threshold' => max( 1, absint( $failures[ $i ] ?? 3 ) ),
+				'overdue_minutes'   => max( 1, absint( $overdues[ $i ] ?? 30 ) ),
+			];
+		}
+
+		$new_hook = sanitize_key( wp_unslash( $_POST['cp_new_override_hook'] ?? '' ) );
+		if ( ! empty( $new_hook ) ) {
+			$per_job[ $new_hook ] = [
+				'failure_threshold' => max( 1, absint( $_POST['cp_new_override_failure'] ?? 3 ) ),
+				'overdue_minutes'   => max( 1, absint( $_POST['cp_new_override_overdue'] ?? 30 ) ),
+			];
+		}
+
+		return $per_job;
 	}
 
 	// -------------------------------------------------------------------------
@@ -77,6 +132,8 @@ class CP_Alerts {
 			return;
 		}
 
+		$threshold = self::get_thresholds_for( $hook )['overdue_minutes'];
+
 		$streaks = get_option( CP_OPTION_STREAKS, [] );
 		$entry   = $streaks[ $hook ] ?? self::default_streak();
 
@@ -87,7 +144,7 @@ class CP_Alerts {
 
 			$minutes_overdue = ( time() - $entry['overdue_since'] ) / 60;
 
-			if ( $minutes_overdue >= $settings['overdue_minutes'] && ! $entry['overdue_alerted'] ) {
+			if ( $minutes_overdue >= $threshold && ! $entry['overdue_alerted'] ) {
 				self::notify( $hook, 'overdue', [ 'minutes' => (int) $minutes_overdue ] );
 				$entry['overdue_alerted'] = true;
 			}
@@ -110,6 +167,8 @@ class CP_Alerts {
 			return;
 		}
 
+		$threshold = self::get_thresholds_for( $hook )['failure_threshold'];
+
 		$streaks = get_option( CP_OPTION_STREAKS, [] );
 		$entry   = $streaks[ $hook ] ?? self::default_streak();
 
@@ -118,7 +177,7 @@ class CP_Alerts {
 		if ( $is_failure ) {
 			$entry['failure_streak']++;
 
-			if ( $entry['failure_streak'] >= $settings['failure_threshold'] && ! $entry['failure_alerted'] ) {
+			if ( $entry['failure_streak'] >= $threshold && ! $entry['failure_alerted'] ) {
 				self::notify( $hook, 'failure', [ 'count' => $entry['failure_streak'], 'status' => $status ] );
 				$entry['failure_alerted'] = true;
 			}
@@ -126,6 +185,22 @@ class CP_Alerts {
 			$entry['failure_streak']  = 0;
 			$entry['failure_alerted'] = false;
 		}
+
+		$streaks[ $hook ] = $entry;
+		update_option( CP_OPTION_STREAKS, $streaks, false );
+	}
+
+	/**
+	 * Acknowledge the current incident for a hook without disabling alerts
+	 * globally — reuses the existing *_alerted guards, so no new notification
+	 * fires until this streak clears and a fresh one starts.
+	 */
+	public static function snooze( string $hook ): void {
+		$streaks = get_option( CP_OPTION_STREAKS, [] );
+		$entry   = $streaks[ $hook ] ?? self::default_streak();
+
+		$entry['failure_alerted'] = true;
+		$entry['overdue_alerted'] = true;
 
 		$streaks[ $hook ] = $entry;
 		update_option( CP_OPTION_STREAKS, $streaks, false );
@@ -195,6 +270,57 @@ class CP_Alerts {
 	// Settings UI
 	// -------------------------------------------------------------------------
 
+	private static function render_overrides_table( array $per_job ): void {
+		$all_hooks = array_values( array_unique( array_map(
+			static function ( $job ) {
+				return $job['hook'];
+			},
+			CP_Admin_Page::get_jobs()
+		) ) );
+		$available = array_values( array_diff( $all_hooks, array_keys( $per_job ) ) );
+		?>
+		<table class="wp-list-table widefat striped" style="max-width:700px;">
+			<thead>
+				<tr>
+					<th><?php esc_html_e( 'Hook', 'cronpulse' ); ?></th>
+					<th><?php esc_html_e( 'Failure threshold', 'cronpulse' ); ?></th>
+					<th><?php esc_html_e( 'Overdue minutes', 'cronpulse' ); ?></th>
+					<th><?php esc_html_e( 'Remove', 'cronpulse' ); ?></th>
+				</tr>
+			</thead>
+			<tbody>
+			<?php if ( empty( $per_job ) ) : ?>
+				<tr><td colspan="4"><?php esc_html_e( 'No overrides configured — all jobs use the global thresholds above.', 'cronpulse' ); ?></td></tr>
+			<?php endif; ?>
+			<?php $i = 0; foreach ( $per_job as $hook => $override ) : ?>
+				<tr>
+					<td>
+						<code><?php echo esc_html( $hook ); ?></code>
+						<input type="hidden" name="cp_override_hook[<?php echo esc_attr( $i ); ?>]" value="<?php echo esc_attr( $hook ); ?>" />
+					</td>
+					<td><input type="number" min="1" name="cp_override_failure[<?php echo esc_attr( $i ); ?>]" value="<?php echo esc_attr( $override['failure_threshold'] ); ?>" class="small-text" /></td>
+					<td><input type="number" min="1" name="cp_override_overdue[<?php echo esc_attr( $i ); ?>]" value="<?php echo esc_attr( $override['overdue_minutes'] ); ?>" class="small-text" /></td>
+					<td><input type="checkbox" name="cp_override_remove[]" value="<?php echo esc_attr( $i ); ?>" /></td>
+				</tr>
+			<?php $i++; endforeach; ?>
+				<tr>
+					<td>
+						<select name="cp_new_override_hook">
+							<option value=""><?php esc_html_e( '— Add a hook —', 'cronpulse' ); ?></option>
+							<?php foreach ( $available as $hook ) : ?>
+								<option value="<?php echo esc_attr( $hook ); ?>"><?php echo esc_html( $hook ); ?></option>
+							<?php endforeach; ?>
+						</select>
+					</td>
+					<td><input type="number" min="1" name="cp_new_override_failure" value="3" class="small-text" /></td>
+					<td><input type="number" min="1" name="cp_new_override_overdue" value="30" class="small-text" /></td>
+					<td>—</td>
+				</tr>
+			</tbody>
+		</table>
+		<?php
+	}
+
 	public static function render_settings_tab(): void {
 		$settings = self::get_settings();
 		?>
@@ -252,6 +378,10 @@ class CP_Alerts {
 					</td>
 				</tr>
 			</table>
+
+			<h2><?php esc_html_e( 'Per-Job Overrides', 'cronpulse' ); ?></h2>
+			<p class="description"><?php esc_html_e( 'Override the failure/overdue thresholds above for specific hooks — e.g. a tighter threshold for a payment hook than for a daily cleanup job.', 'cronpulse' ); ?></p>
+			<?php self::render_overrides_table( $settings['per_job'] ); ?>
 
 			<h2><?php esc_html_e( 'General', 'cronpulse' ); ?></h2>
 			<table class="form-table" role="presentation">

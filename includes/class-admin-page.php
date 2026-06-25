@@ -64,9 +64,10 @@ class CP_Admin_Page {
 			wp_die( esc_html__( 'Unauthorized.', 'cronpulse' ) );
 		}
 
-		$jobs      = self::get_jobs();
-		$log       = CP_Cron_Tracker::get_log();
-		$schedules = wp_get_schedules();
+		$jobs           = self::get_jobs();
+		$log            = CP_Cron_Tracker::get_log();
+		$schedules      = wp_get_schedules();
+		$alerts_enabled = CP_Alerts::get_settings()['enabled'];
 
 		// Summary counts
 		$total   = count( $jobs );
@@ -163,9 +164,9 @@ class CP_Admin_Page {
 							<th><?php esc_html_e( 'Status',   'cronpulse' ); ?></th>
 							<th><?php esc_html_e( 'Hook',     'cronpulse' ); ?></th>
 							<th><?php esc_html_e( 'Schedule', 'cronpulse' ); ?></th>
-							<th><?php esc_html_e( 'Next Run', 'cronpulse' ); ?></th>
+							<th class="cp-sortable" data-sort="next-run"><?php esc_html_e( 'Next Run', 'cronpulse' ); ?></th>
 							<th><?php esc_html_e( 'Last Run', 'cronpulse' ); ?></th>
-							<th><?php esc_html_e( 'Duration', 'cronpulse' ); ?></th>
+							<th class="cp-sortable" data-sort="duration"><?php esc_html_e( 'Duration', 'cronpulse' ); ?></th>
 							<th><?php esc_html_e( 'Actions',  'cronpulse' ); ?></th>
 						</tr>
 					</thead>
@@ -174,10 +175,19 @@ class CP_Admin_Page {
 						$schedule_label = isset( $schedules[ $job['schedule'] ] )
 							? $schedules[ $job['schedule'] ]['display']
 							: ( $job['schedule'] ?: '—' );
-						$last_run = CP_Cron_Tracker::get_last_run( $job['hook'] );
-						$duration = isset( $last_run['duration'] ) ? absint( $last_run['duration'] ) . ' ms' : '—';
+						$last_run    = CP_Cron_Tracker::get_last_run( $job['hook'] );
+						$duration_ms = isset( $last_run['duration'] ) ? (int) $last_run['duration'] : -1;
+						$duration    = $duration_ms >= 0 ? $duration_ms . ' ms' : '—';
+						$sparkline   = self::render_sparkline( CP_Cron_Tracker::get_recent_durations( $job['hook'], 10 ) );
+						$needs_alert_action = $alerts_enabled && in_array( $job['status'], [ 'overdue', 'failing' ], true );
 					?>
-					<tr class="cp-row cp-status-<?php echo esc_attr( $job['status'] ); ?>" data-hook="<?php echo esc_attr( $job['hook'] ); ?>" data-status="<?php echo esc_attr( $job['status'] ); ?>">
+					<tr
+						class="cp-row cp-status-<?php echo esc_attr( $job['status'] ); ?>"
+						data-hook="<?php echo esc_attr( $job['hook'] ); ?>"
+						data-status="<?php echo esc_attr( $job['status'] ); ?>"
+						data-next-run="<?php echo esc_attr( $job['next_run'] ); ?>"
+						data-duration="<?php echo esc_attr( $duration_ms ); ?>"
+					>
 						<td>
 							<span class="cp-dot cp-dot-<?php echo esc_attr( $job['status'] ); ?>" title="<?php echo esc_attr( ucfirst( $job['status'] ) ); ?>"></span>
 							<span class="cp-status-text"><?php echo esc_html( ucfirst( $job['status'] ) ); ?></span>
@@ -199,7 +209,10 @@ class CP_Admin_Page {
 								<span class="cp-muted"><?php esc_html_e( 'Never', 'cronpulse' ); ?></span>
 							<?php endif; ?>
 						</td>
-						<td><?php echo esc_html( $duration ); ?></td>
+						<td>
+							<span class="cp-duration-text"><?php echo esc_html( $duration ); ?></span>
+							<?php echo $sparkline; // phpcs:ignore WordPress.Security.EscapeOutput -- built entirely from numeric duration data above ?>
+						</td>
 						<td>
 							<button
 								class="button button-small cp-run-now"
@@ -212,11 +225,22 @@ class CP_Admin_Page {
 								data-timestamp="<?php echo esc_attr( $job['next_run'] ); ?>"
 								data-sig="<?php echo esc_attr( $job['sig'] ); ?>"
 							><?php esc_html_e( 'Delete', 'cronpulse' ); ?></button>
+							<?php if ( $needs_alert_action ) : ?>
+								<button
+									class="button button-small cp-snooze"
+									data-hook="<?php echo esc_attr( $job['hook'] ); ?>"
+								><?php esc_html_e( 'Snooze', 'cronpulse' ); ?></button>
+							<?php endif; ?>
 						</td>
 					</tr>
 					<?php endforeach; ?>
 					</tbody>
 				</table>
+				<div id="cp-pagination" class="cp-pagination" style="display:none;">
+					<button type="button" id="cp-prev-page" class="button button-small">‹ <?php esc_html_e( 'Previous', 'cronpulse' ); ?></button>
+					<span id="cp-page-info"></span>
+					<button type="button" id="cp-next-page" class="button button-small"><?php esc_html_e( 'Next', 'cronpulse' ); ?> ›</button>
+				</div>
 				<?php endif; ?>
 			</div>
 
@@ -345,6 +369,41 @@ class CP_Admin_Page {
 		} );
 
 		return $jobs;
+	}
+
+	/**
+	 * Build a tiny inline SVG sparkline from a hook's recent durations, so a
+	 * creeping-up execution time is visible before it becomes a timeout.
+	 * Returns an empty string when there's not enough data for a trend line.
+	 *
+	 * @param int[] $durations Milliseconds, oldest first.
+	 */
+	private static function render_sparkline( array $durations ): string {
+		if ( count( $durations ) < 2 ) {
+			return '';
+		}
+
+		$width  = 60;
+		$height = 18;
+		$max    = max( $durations );
+		$min    = min( $durations );
+		$range  = max( 1, $max - $min ); // avoid div-by-zero when every run took the same time
+		$count  = count( $durations );
+		$step   = $width / ( $count - 1 );
+
+		$points = [];
+		foreach ( $durations as $i => $d ) {
+			$x        = round( $i * $step, 1 );
+			$y        = round( $height - ( ( $d - $min ) / $range ) * $height, 1 );
+			$points[] = $x . ',' . $y;
+		}
+
+		return sprintf(
+			'<svg class="cp-sparkline" width="%1$d" height="%2$d" viewBox="0 0 %1$d %2$d" aria-hidden="true"><polyline points="%3$s" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>',
+			$width,
+			$height,
+			esc_attr( implode( ' ', $points ) )
+		);
 	}
 
 	/**
