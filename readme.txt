@@ -3,7 +3,7 @@ Contributors:      farhanalidev
 Tags:              cron, cron jobs, wp-cron, developer tools, debugging
 Requires at least: 5.8
 Tested up to:      7.0
-Stable tag:        1.0.0
+Stable tag:        1.1.0
 Requires PHP:      7.4
 License:           GPL-2.0-or-later
 License URI:       https://www.gnu.org/licenses/gpl-2.0.html
@@ -22,9 +22,12 @@ WordPress developers fly blind with WP-Cron. The core tools give you no visibili
 * **Status indicators** — Healthy / Overdue / Pending color coding so problems jump out immediately
 * **Overdue detection** — instantly see jobs that should have fired but haven't
 * **Run Now** — manually trigger any cron hook with one click (great for testing)
-* **Execution Log** — persistent log of the last 200 runs with duration and pass/fail status
-* **Hook filter** — search/filter jobs by hook name
+* **Unschedule** — delete a stuck or duplicate scheduled event straight from the dashboard
+* **Execution Log** — persistent log of run history with duration and pass/fail status; retention is configurable
+* **Hook and status filters** — search by hook name or narrow the table to just Overdue/Failing/Healthy/Never Run
 * **DISABLE_WP_CRON warning** — alerts you when automatic cron execution is disabled
+* **Email and webhook alerts** — get notified after N consecutive failed runs or when a job has been overdue too long
+* **WP-CLI support** — `wp cronpulse status` for scripting health checks across sites
 * Zero external dependencies — pure PHP and vanilla jQuery
 
 = Who is this for? =
@@ -65,7 +68,7 @@ No. The tracker hooks fire only during cron execution (not on regular page loads
 
 = Where is the log stored? =
 
-In the WordPress options table under the key `cp_execution_log`. It is capped at 200 entries and cleared on uninstall.
+In the WordPress options table under the key `cp_execution_log`. The entry cap defaults to 200 and is configurable from the Settings tab (10–5000). It's cleared on uninstall.
 
 = Is it compatible with Action Scheduler or WooCommerce? =
 
@@ -73,10 +76,21 @@ Cron Pulse tracks jobs registered through the standard WordPress `wp_schedule_ev
 
 == Changelog ==
 
+= 1.1.0 =
+* Added stuck-job detection (process killed without completing, not just fatals)
+* Added email/webhook alerts after N consecutive failures or extended overdue time
+* Added unschedule/delete for a single scheduled event
+* Added WP-CLI command: `wp cronpulse status`
+* Added status filter on the Scheduled Jobs table
+* Added configurable execution log retention (Settings tab)
+
 = 1.0.0 =
 * Initial release
 
 == Upgrade Notice ==
+
+= 1.1.0 =
+No action needed. New Settings tab lets you configure alerts and log retention.
 
 = 1.0.0 =
 Initial release.

@@ -3,7 +3,7 @@
  * Plugin Name: Cron Pulse
  * Plugin URI:  https://wordpress.org/plugins/cronpulse/
  * Description: A visual dashboard to monitor, debug, and manually trigger WordPress cron jobs. See schedules, last run times, execution duration, and pass/fail status at a glance.
- * Version:     1.0.0
+ * Version:     1.1.0
  * Author:      Farhan Ali
  * Author URI:  https://farhanali.me
  * License:     GPL-2.0-or-later
@@ -15,7 +15,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CP_VERSION',        '1.0.0' );
+define( 'CP_VERSION',        '1.1.0' );
 define( 'CP_PLUGIN_DIR',     plugin_dir_path( __FILE__ ) );
 define( 'CP_PLUGIN_URL',     plugin_dir_url( __FILE__ ) );
 define( 'CP_OPTION_LOG',     'cp_execution_log' );
