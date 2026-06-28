@@ -186,13 +186,7 @@ class CronPulse_Ajax_Handler {
 				$dashboard
 			);
 
-			$rows  = CronPulse_Alerts::render_email_row(
-				__( 'Sent via', 'cronpulse' ),
-				! empty( $settings['smtp_enabled'] )
-					? $settings['smtp_host'] . ':' . $settings['smtp_port']
-					: __( 'Default mail() (no SMTP configured)', 'cronpulse' )
-			);
-			$rows .= CronPulse_Alerts::render_email_row( __( 'Site', 'cronpulse' ), $site );
+			$rows = CronPulse_Alerts::render_email_row( __( 'Site', 'cronpulse' ), $site );
 
 			$html = CronPulse_Alerts::render_email_html(
 				__( 'Test', 'cronpulse' ),
