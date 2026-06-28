@@ -369,6 +369,10 @@
 }
 
 /* Help box (e.g. webhook setup instructions) --------------- */
+button.cp-test-webhook{
+	margin-top: 10px !important;
+}
+
 .cp-help-box {
 	background: var(--cp-surface);
 	border: 1px solid var(--cp-border);
@@ -438,10 +442,6 @@
 	border-radius: var(--cp-radius);
 	box-shadow: var(--cp-shadow);
 	padding: 18px 20px;
-}
-
-button.cp-test-webhook{
-	margin-top: 10px;
 }
 
 @media (max-width: 1100px) {
