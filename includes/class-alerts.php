@@ -81,32 +81,32 @@ class CronPulse_Alerts {
 	/**
 	 * Rebuild the per-job override map from the settings form's parallel
 	 * arrays (existing rows) plus the single "add new" row, if filled in.
+	 *
+	 * Nonce verification happens in maybe_save_settings() before this is ever
+	 * called — phpcs can't see across the function boundary, hence the
+	 * disable block below rather than a duplicate check here.
 	 */
 	private static function parse_overrides_from_post(): array {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing
 		$per_job = [];
 
-		$hooks      = (array) ( $_POST['cronpulse_override_hook'] ?? [] );
-		$failures   = (array) ( $_POST['cronpulse_override_failure'] ?? [] );
-		$overdues   = (array) ( $_POST['cronpulse_override_overdue'] ?? [] );
-		$removed    = array_flip( (array) ( $_POST['cronpulse_override_remove'] ?? [] ) );
+		$hooks    = isset( $_POST['cronpulse_override_hook'] ) ? array_map( 'sanitize_key', wp_unslash( (array) $_POST['cronpulse_override_hook'] ) ) : [];
+		$failures = isset( $_POST['cronpulse_override_failure'] ) ? array_map( 'absint', wp_unslash( (array) $_POST['cronpulse_override_failure'] ) ) : [];
+		$overdues = isset( $_POST['cronpulse_override_overdue'] ) ? array_map( 'absint', wp_unslash( (array) $_POST['cronpulse_override_overdue'] ) ) : [];
+		$removed  = isset( $_POST['cronpulse_override_remove'] ) ? array_flip( array_map( 'absint', wp_unslash( (array) $_POST['cronpulse_override_remove'] ) ) ) : [];
 
-		foreach ( $hooks as $i => $raw_hook ) {
-			if ( isset( $removed[ $i ] ) ) {
-				continue;
-			}
-
-			$hook = sanitize_key( wp_unslash( $raw_hook ) );
-			if ( empty( $hook ) ) {
+		foreach ( $hooks as $i => $hook ) {
+			if ( isset( $removed[ $i ] ) || empty( $hook ) ) {
 				continue;
 			}
 
 			$per_job[ $hook ] = [
-				'failure_threshold' => max( 1, absint( $failures[ $i ] ?? 3 ) ),
-				'overdue_minutes'   => max( 1, absint( $overdues[ $i ] ?? 30 ) ),
+				'failure_threshold' => max( 1, $failures[ $i ] ?? 3 ),
+				'overdue_minutes'   => max( 1, $overdues[ $i ] ?? 30 ),
 			];
 		}
 
-		$new_hook = sanitize_key( wp_unslash( $_POST['cronpulse_new_override_hook'] ?? '' ) );
+		$new_hook = isset( $_POST['cronpulse_new_override_hook'] ) ? sanitize_key( wp_unslash( $_POST['cronpulse_new_override_hook'] ) ) : '';
 		if ( ! empty( $new_hook ) ) {
 			$per_job[ $new_hook ] = [
 				'failure_threshold' => max( 1, absint( $_POST['cronpulse_new_override_failure'] ?? 3 ) ),
@@ -115,6 +115,7 @@ class CronPulse_Alerts {
 		}
 
 		return $per_job;
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
 	}
 
 	// -------------------------------------------------------------------------

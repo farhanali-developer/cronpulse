@@ -2,8 +2,8 @@
 Contributors:      farhanalidev
 Tags:              cron, cron jobs, wp-cron, developer tools, debugging
 Requires at least: 5.8
-Tested up to:      6.8
-Stable tag:        1.3.0
+Tested up to:      7.0
+Stable tag:        1.3.1
 Requires PHP:      7.4
 License:           GPL-2.0-or-later
 License URI:       https://www.gnu.org/licenses/gpl-2.0.html
@@ -92,6 +92,13 @@ It's evaluated on every page load along with everything else the plugin tracks, 
 
 == Changelog ==
 
+= 1.3.1 =
+* Fixed: missing translators comment on a translatable string with a placeholder
+* Fixed: removed `.gitignore` from the plugin package — hidden files aren't permitted in the WordPress.org repository
+* Fixed: escaped output in the execution log count display
+* Fixed: nonce-verification and input-sanitization warnings in the per-job alert overrides save handler
+* Corrected "Tested up to" to the current WordPress version
+
 = 1.3.0 =
 * Fixed: clicking Run Now wrote two log entries for the same run (the wrapper hooked to every cron action fired alongside the explicit log call)
 * Fixed: cron tracking now only attaches during a genuine WP-Cron run (wp_doing_cron()), so it no longer records unrelated direct invocations of a same-named hook
@@ -119,6 +126,9 @@ It's evaluated on every page load along with everything else the plugin tracks, 
 * Initial release
 
 == Upgrade Notice ==
+
+= 1.3.1 =
+No action needed. Code-quality and compliance fixes only.
 
 = 1.3.0 =
 Internal option/constant names changed for WordPress.org compliance. If you installed an earlier version, your execution log and alert settings will reset on upgrade (the plugin starts fresh under the new names).

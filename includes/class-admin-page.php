@@ -50,6 +50,7 @@ class CronPulse_Admin_Page {
 				'runNow'            => __( 'Run Now', 'cronpulse' ),
 				'justNow'           => __( 'Just now', 'cronpulse' ),
 				'confirmClear'      => __( 'Clear the entire execution log? This cannot be undone.', 'cronpulse' ),
+				/* translators: %s = cron hook name */
 				'confirmUnschedule' => __( 'Unschedule "%s"? If something else re-schedules it, it may come back.', 'cronpulse' ),
 			],
 		] );
@@ -93,7 +94,10 @@ class CronPulse_Admin_Page {
 				<?php esc_html_e( 'Cron Pulse', 'cronpulse' ); ?>
 			</h1>
 
-			<?php if ( isset( $_GET['updated'] ) ) : ?>
+			<?php
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only flag that toggles a static notice; nothing is processed or saved here. The actual save in CronPulse_Alerts::maybe_save_settings() is nonce-verified.
+			if ( isset( $_GET['updated'] ) ) :
+				?>
 				<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Settings saved.', 'cronpulse' ); ?></p></div>
 			<?php endif; ?>
 
@@ -252,12 +256,14 @@ class CronPulse_Admin_Page {
 				<div class="cp-log-toolbar">
 					<button class="button cp-clear-log"><?php esc_html_e( 'Clear Log', 'cronpulse' ); ?></button>
 					<span class="cp-log-count">
-						<?php printf(
+						<?php
+						echo esc_html( sprintf(
 							/* translators: 1: number of log entries stored, 2: configured retention limit */
-							esc_html__( '%1$d entries (newest first, max %2$d)', 'cronpulse' ),
+							__( '%1$d entries (newest first, max %2$d)', 'cronpulse' ),
 							count( $log ),
 							CronPulse_Alerts::get_settings()['log_retention']
-						); ?>
+						) );
+						?>
 					</span>
 				</div>
 				<table class="cp-table">
