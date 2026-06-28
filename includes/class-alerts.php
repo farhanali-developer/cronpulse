@@ -15,6 +15,8 @@ class CronPulse_Alerts {
 	public static function init(): void {
 		add_action( 'admin_init', [ __CLASS__, 'maybe_save_settings' ] );
 		add_action( 'phpmailer_init', [ __CLASS__, 'configure_smtp' ] );
+		add_filter( 'wp_mail_from', [ __CLASS__, 'filter_mail_from' ] );
+		add_filter( 'wp_mail_from_name', [ __CLASS__, 'filter_mail_from_name' ] );
 	}
 
 	// -------------------------------------------------------------------------
@@ -153,6 +155,14 @@ class CronPulse_Alerts {
 	 * server's default PHP mail()/sendmail — no third-party plugin involved,
 	 * just configuring the PHPMailer instance WordPress already bundles.
 	 *
+	 * From-address override is handled separately via the wp_mail_from /
+	 * wp_mail_from_name filters (see below), NOT here — wp_mail() calls
+	 * $phpmailer->setFrom() with its own default *before* phpmailer_init
+	 * fires. If that default happens to be invalid (e.g. a local dev
+	 * hostname with no TLD, producing something like wordpress@localhost),
+	 * PHPMailer throws right there and this hook never even runs. Setting
+	 * the From address earlier, via the filters, avoids that entirely.
+	 *
 	 * @param PHPMailer $phpmailer Passed by reference by the phpmailer_init action.
 	 */
 	public static function configure_smtp( $phpmailer ): void {
@@ -175,10 +185,40 @@ class CronPulse_Alerts {
 		} else {
 			$phpmailer->SMTPSecure = $settings['smtp_encryption']; // 'ssl' or 'tls'
 		}
+	}
+
+	/**
+	 * Runs before wp_mail()'s own setFrom() call, so an invalid default
+	 * (e.g. wordpress@a-local-hostname-with-no-tld) never reaches PHPMailer
+	 * in the first place. Once SMTP is on, prefer the site's admin email
+	 * (already validated by WordPress itself) over WP's own fragile default
+	 * even if no explicit From Email override was set — most SMTP providers
+	 * reject or rewrite an unverified sender anyway.
+	 */
+	public static function filter_mail_from( string $email ): string {
+		$settings = self::get_settings();
+
+		if ( empty( $settings['smtp_enabled'] ) ) {
+			return $email;
+		}
 
 		if ( ! empty( $settings['smtp_from_email'] ) ) {
-			$phpmailer->setFrom( $settings['smtp_from_email'], $settings['smtp_from_name'] ?: get_bloginfo( 'name' ) );
+			return $settings['smtp_from_email'];
 		}
+
+		$admin_email = get_option( 'admin_email' );
+
+		return $admin_email ?: $email;
+	}
+
+	public static function filter_mail_from_name( string $name ): string {
+		$settings = self::get_settings();
+
+		if ( empty( $settings['smtp_enabled'] ) ) {
+			return $name;
+		}
+
+		return $settings['smtp_from_name'] ?: get_bloginfo( 'name' );
 	}
 
 	// -------------------------------------------------------------------------
