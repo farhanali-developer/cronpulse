@@ -209,19 +209,25 @@ class CronPulse_Ajax_Handler {
 			return;
 		}
 
+		$test_message = sprintf(
+			/* translators: %s = site URL */
+			__( 'This is a test alert from Cron Pulse on %s.', 'cronpulse' ),
+			home_url()
+		);
+
 		$response = wp_remote_post( $webhook, [
 			'timeout' => 10,
 			'headers' => [ 'Content-Type' => 'application/json' ],
+			// 'text' and 'content' make this work as-is against Slack's and
+			// Discord's own webhook formats; both ignore unrecognized keys.
 			'body'    => wp_json_encode( [
 				'plugin'  => 'cronpulse',
 				'hook'    => 'test',
 				'type'    => 'test',
 				'site'    => home_url(),
-				'message' => sprintf(
-					/* translators: %s = site URL */
-					__( 'This is a test alert from Cron Pulse on %s.', 'cronpulse' ),
-					home_url()
-				),
+				'message' => $test_message,
+				'text'    => $test_message,
+				'content' => $test_message,
 			] ),
 		] );
 

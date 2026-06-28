@@ -319,12 +319,17 @@ class CronPulse_Alerts {
 				'timeout'  => 5,
 				'blocking' => false,
 				'headers'  => [ 'Content-Type' => 'application/json' ],
+				// 'text' and 'content' are included so the payload works as-is
+				// against Slack's and Discord's own webhook formats (they look
+				// for those exact keys); both just ignore the rest.
 				'body'     => wp_json_encode( [
 					'plugin'  => 'cronpulse',
 					'hook'    => $hook,
 					'type'    => $type,
 					'site'    => home_url(),
 					'message' => $body,
+					'text'    => $body,
+					'content' => $body,
 				] ),
 			] );
 		}
@@ -449,6 +454,8 @@ class CronPulse_Alerts {
 	public static function render_settings_tab(): void {
 		$settings = self::get_settings();
 		?>
+		<div class="cp-settings-layout">
+		<div class="cp-settings-main">
 		<form method="post" action="">
 			<?php wp_nonce_field( 'cronpulse_save_alerts', 'cronpulse_alerts_nonce' ); ?>
 			<input type="hidden" name="cronpulse_alerts_submit" value="1" />
@@ -610,6 +617,58 @@ class CronPulse_Alerts {
 
 			<?php submit_button( __( 'Save Settings', 'cronpulse' ) ); ?>
 		</form>
+		</div><!-- .cp-settings-main -->
+
+		<div class="cp-settings-sidebar">
+			<?php self::render_webhook_help_box(); ?>
+		</div>
+		</div><!-- .cp-settings-layout -->
+		<?php
+	}
+
+	/**
+	 * A "how do I get a webhook URL" cheat sheet for the most common targets.
+	 * Lives in its own method since it's purely presentational, no settings
+	 * logic involved.
+	 */
+	private static function render_webhook_help_box(): void {
+		?>
+		<div class="cp-help-box">
+			<h3>
+				<span class="dashicons dashicons-admin-links"></span>
+				<?php esc_html_e( 'Setting Up a Webhook', 'cronpulse' ); ?>
+			</h3>
+			<p><?php esc_html_e( 'A webhook lets Cron Pulse notify Slack, Discord, or your own server the moment a job starts failing or running too late — paste the URL into the Webhook URL field on the left.', 'cronpulse' ); ?></p>
+
+			<h4>Slack</h4>
+			<ol>
+				<li><?php esc_html_e( 'Go to api.slack.com/apps and create (or open) an app', 'cronpulse' ); ?></li>
+				<li><?php esc_html_e( 'Enable "Incoming Webhooks", then "Add New Webhook to Workspace"', 'cronpulse' ); ?></li>
+				<li><?php esc_html_e( 'Pick a channel and copy the Webhook URL it gives you', 'cronpulse' ); ?></li>
+			</ol>
+
+			<h4>Discord</h4>
+			<ol>
+				<li><?php esc_html_e( 'In your server: Server Settings → Integrations → Webhooks', 'cronpulse' ); ?></li>
+				<li><?php esc_html_e( '"New Webhook" — name it and pick a channel', 'cronpulse' ); ?></li>
+				<li><?php esc_html_e( 'Click "Copy Webhook URL"', 'cronpulse' ); ?></li>
+			</ol>
+
+			<h4><?php esc_html_e( 'Your Own Endpoint', 'cronpulse' ); ?></h4>
+			<p><?php esc_html_e( 'Receives an HTTP POST, Content-Type: application/json:', 'cronpulse' ); ?></p>
+			<pre class="cp-help-code">{
+  "plugin": "cronpulse",
+  "hook": "my_cron_hook",
+  "type": "failure",
+  "site": "https://example.com",
+  "message": "...",
+  "text": "...",
+  "content": "..."
+}</pre>
+			<p class="description"><?php esc_html_e( '"text" and "content" are included so the same payload works as-is with Slack and Discord — safe to ignore them if you only need the structured fields.', 'cronpulse' ); ?></p>
+
+			<p class="description"><?php esc_html_e( 'Once saved, use "Send Test Webhook" above to confirm it actually arrives.', 'cronpulse' ); ?></p>
+		</div>
 		<?php
 	}
 }

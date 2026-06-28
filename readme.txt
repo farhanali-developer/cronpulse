@@ -3,7 +3,7 @@ Contributors:      farhanalidev
 Tags:              cron, cron jobs, wp-cron, developer tools, debugging
 Requires at least: 5.8
 Tested up to:      7.0
-Stable tag:        1.4.0
+Stable tag:        1.0.0
 Requires PHP:      7.4
 License:           GPL-2.0-or-later
 License URI:       https://www.gnu.org/licenses/gpl-2.0.html
@@ -29,7 +29,7 @@ WordPress developers fly blind with WP-Cron. The core tools give you no visibili
 * **Execution Log** — persistent log of run history with duration and pass/fail status; retention is configurable
 * **Hook and status filters** — search by hook name or narrow the table to just Overdue/Failing/Healthy/Never Run
 * **DISABLE_WP_CRON warning** — alerts you when automatic cron execution is disabled
-* **Email and webhook alerts** — get notified after N consecutive failed runs or when a job has been overdue too long, with optional per-job thresholds and a one-click snooze for incidents you already know about
+* **Email and webhook alerts** — get notified after N consecutive failed runs or when a job has been overdue too long, with optional per-job thresholds and a one-click snooze for incidents you already know about. Webhook payloads work directly with Slack and Discord, no relay needed — setup instructions are built into the Settings tab
 * **Built-in SMTP settings** — route alert emails through your own mail provider instead of the server's default mail() function, no separate SMTP plugin required
 * **Email Log** — see every alert/test email Cron Pulse has sent, with delivery status and the underlying error if one failed
 * **Send Test Email / Send Test Webhook** — confirm your notification settings actually work before you need them
@@ -103,60 +103,10 @@ In the WordPress options table under the key `cronpulse_email_log`, capped at th
 
 == Changelog ==
 
-= 1.4.0 =
-* Added built-in SMTP settings — route alert emails through your own mail provider, no separate SMTP plugin needed
-* Added Email Log tab — see every alert/test email sent, with delivery status and error detail on failure
-* Added Send Test Email and Send Test Webhook buttons to confirm notification settings work before relying on them
-
-= 1.3.1 =
-* Fixed: missing translators comment on a translatable string with a placeholder
-* Fixed: removed `.gitignore` from the plugin package — hidden files aren't permitted in the WordPress.org repository
-* Fixed: escaped output in the execution log count display
-* Fixed: nonce-verification and input-sanitization warnings in the per-job alert overrides save handler
-* Corrected "Tested up to" to the current WordPress version
-
-= 1.3.0 =
-* Fixed: clicking Run Now wrote two log entries for the same run (the wrapper hooked to every cron action fired alongside the explicit log call)
-* Fixed: cron tracking now only attaches during a genuine WP-Cron run (wp_doing_cron()), so it no longer records unrelated direct invocations of a same-named hook
-* Fixed: per-hook run duration no longer relies solely on a shared transient, so overlapping runs of the same hook can't clobber each other's timing
-* Renamed all internal PHP constants, classes, options, transients, and AJAX actions to a longer, more distinctive prefix (`cronpulse_` / `CronPulse_`) to avoid collisions with other plugins
-
-= 1.2.0 =
-* Added admin bar badge showing a count of overdue/failing jobs on any page
-* Added REST API endpoint: `GET /wp-json/cronpulse/v1/status`
-* Added per-job alert threshold overrides (Settings tab)
-* Added sortable Next Run / Duration columns
-* Added per-hook duration sparkline
-* Added pagination to the Scheduled Jobs table (25 per page)
-* Added one-click Snooze to acknowledge a failing/overdue job without disabling alerts globally
-
-= 1.1.0 =
-* Added stuck-job detection (process killed without completing, not just fatals)
-* Added email/webhook alerts after N consecutive failures or extended overdue time
-* Added unschedule/delete for a single scheduled event
-* Added WP-CLI command: `wp cronpulse status`
-* Added status filter on the Scheduled Jobs table
-* Added configurable execution log retention (Settings tab)
-
 = 1.0.0 =
 * Initial release
 
 == Upgrade Notice ==
-
-= 1.4.0 =
-No action needed. SMTP is off by default — alert emails keep using the server's default mail() function until you enable and save SMTP settings yourself.
-
-= 1.3.1 =
-No action needed. Code-quality and compliance fixes only.
-
-= 1.3.0 =
-Internal option/constant names changed for WordPress.org compliance. If you installed an earlier version, your execution log and alert settings will reset on upgrade (the plugin starts fresh under the new names).
-
-= 1.2.0 =
-No action needed. New per-job alert overrides and REST endpoint are opt-in.
-
-= 1.1.0 =
-No action needed. New Settings tab lets you configure alerts and log retention.
 
 = 1.0.0 =
 Initial release.

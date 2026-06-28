@@ -341,3 +341,80 @@
 	opacity: .7;
 	pointer-events: none;
 }
+
+/* Settings layout: main form + help sidebar ---------------- */
+.cp-settings-layout {
+	display: flex;
+	gap: 24px;
+	align-items: flex-start;
+}
+.cp-settings-main {
+	flex: 1 1 65%;
+	min-width: 0;
+}
+.cp-settings-sidebar {
+	flex: 1 1 320px;
+	max-width: 360px;
+	position: sticky;
+	top: 40px;
+}
+@media (max-width: 900px) {
+	.cp-settings-layout {
+		flex-direction: column;
+	}
+	.cp-settings-sidebar {
+		position: static;
+		max-width: 100%;
+	}
+}
+
+/* Help box (e.g. webhook setup instructions) --------------- */
+.cp-help-box {
+	background: var(--cp-surface);
+	border: 1px solid var(--cp-border);
+	border-left: 4px solid #2271b1;
+	border-radius: var(--cp-radius);
+	box-shadow: var(--cp-shadow);
+	padding: 18px 20px;
+}
+.cp-help-box h3 {
+	margin: 0 0 10px;
+	font-size: 1rem;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	color: #1d2327;
+}
+.cp-help-box h3 .dashicons {
+	color: #2271b1;
+}
+.cp-help-box h4 {
+	margin: 18px 0 6px;
+	font-size: 0.78rem;
+	text-transform: uppercase;
+	letter-spacing: .4px;
+	color: var(--cp-muted);
+}
+.cp-help-box p {
+	font-size: 0.85rem;
+	margin: 0 0 10px;
+	line-height: 1.5;
+}
+.cp-help-box ol {
+	margin: 0 0 0 18px;
+	padding: 0;
+	font-size: 0.85rem;
+	line-height: 1.5;
+}
+.cp-help-box ol li {
+	margin-bottom: 4px;
+}
+.cp-help-code {
+	background: #f0f0f1;
+	border-radius: 3px;
+	padding: 10px 12px;
+	font-size: 0.75rem;
+	overflow-x: auto;
+	white-space: pre;
+	margin: 0 0 8px;
+}

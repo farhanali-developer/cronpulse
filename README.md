@@ -56,7 +56,7 @@ The **Settings** tab lets you enable email and/or webhook notifications:
 - **Failure threshold** — alert after N consecutive failed runs for a job
 - **Overdue threshold** — alert once a job has been overdue for longer than N minutes
 - **Per-job overrides** — set tighter or looser thresholds for specific hooks (e.g. a payment-processing hook vs. a daily cleanup job)
-- **Webhook** — receives a JSON POST for every alert; works with Slack, Discord, or your own endpoint
+- **Webhook** — receives a JSON POST for every alert. Includes both `text` and `content` keys alongside the structured fields, so the same payload works directly as a Slack or Discord webhook with no relay needed. Step-by-step setup for both, plus the full payload shape for a custom endpoint, is in a help box right on the Settings tab
 - **SMTP** — host, port, encryption, username/password, and From address/name, applied via WordPress's `phpmailer_init` hook — no third-party SMTP plugin involved
 - **Snooze** — acknowledge a current incident from the dashboard without disabling alerts globally; resumes normally once that hook recovers and fails again
 
