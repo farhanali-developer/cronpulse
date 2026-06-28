@@ -177,10 +177,40 @@ class CronPulse_Ajax_Handler {
 					esc_html( CronPulse_Debug_Log::get_dir() )
 				);
 
+			$site      = (string) wp_parse_url( home_url(), PHP_URL_HOST );
+			$dashboard = admin_url( 'tools.php?page=cronpulse' );
+
+			$plain = sprintf(
+				"This is a test email from Cron Pulse to confirm your email settings are working.\n\nSite: %s\nDashboard: %s",
+				$site,
+				$dashboard
+			);
+
+			$rows  = CronPulse_Alerts::render_email_row(
+				__( 'Sent via', 'cronpulse' ),
+				! empty( $settings['smtp_enabled'] )
+					? $settings['smtp_host'] . ':' . $settings['smtp_port']
+					: __( 'Default mail() (no SMTP configured)', 'cronpulse' )
+			);
+			$rows .= CronPulse_Alerts::render_email_row( __( 'Site', 'cronpulse' ), $site );
+
+			$html = CronPulse_Alerts::render_email_html(
+				__( 'Test', 'cronpulse' ),
+				'#00a32a',
+				__( 'Your email settings are working', 'cronpulse' ),
+				'',
+				__( 'This is a test email from Cron Pulse. If you can read this, alert emails will reach you the same way.', 'cronpulse' ),
+				$rows,
+				$dashboard,
+				__( 'Open Dashboard', 'cronpulse' ),
+				$site
+			);
+
 			$sent = CronPulse_Alerts::send_and_log(
 				$to,
 				'[Cron Pulse] Test email',
-				"This is a test email from Cron Pulse to confirm your email settings are working.\n\nSite: " . home_url(),
+				$html,
+				$plain,
 				'test'
 			);
 

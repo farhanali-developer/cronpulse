@@ -338,34 +338,114 @@ class CronPulse_Alerts {
 	// -------------------------------------------------------------------------
 
 	private static function notify( string $hook, string $type, array $context ): void {
-		$settings = self::get_settings();
-		$site     = wp_parse_url( home_url(), PHP_URL_HOST );
+		$settings  = self::get_settings();
+		$site      = (string) wp_parse_url( home_url(), PHP_URL_HOST );
 		$dashboard = admin_url( 'tools.php?page=cronpulse' );
+		$last_run  = CronPulse_Cron_Tracker::get_last_run( $hook );
 
 		if ( 'overdue' === $type ) {
+			$minutes  = (int) $context['minutes'];
+			$overdue  = human_time_diff( time() - ( $minutes * MINUTE_IN_SECONDS ), time() );
+
 			$subject = sprintf( '[Cron Pulse] %s is overdue on %s', $hook, $site );
-			$body    = sprintf(
-				"The cron hook \"%s\" has been overdue for more than %d minutes.\n\nSite: %s\nDashboard: %s",
+			$plain   = sprintf(
+				"The cron hook \"%s\" has been overdue for more than %s.\n\nSite: %s\nDashboard: %s",
 				$hook,
-				$context['minutes'],
+				$overdue,
 				$site,
 				$dashboard
 			);
+
+			$rows  = self::render_email_row( __( 'Overdue for', 'cronpulse' ), $overdue );
+			$rows .= self::render_email_row(
+				__( 'Alert threshold', 'cronpulse' ),
+				sprintf(
+					/* translators: %d = minutes */
+					__( '%d minutes', 'cronpulse' ),
+					self::get_thresholds_for( $hook )['overdue_minutes']
+				)
+			);
+			if ( $last_run ) {
+				$rows .= self::render_email_row(
+					__( 'Last execution', 'cronpulse' ),
+					sprintf(
+						/* translators: 1: execution status, 2: relative time, e.g. "2 hours ago" */
+						__( '%1$s, %2$s', 'cronpulse' ),
+						ucfirst( $last_run['status'] ),
+						CronPulse_Admin_Page::format_time( (int) $last_run['timestamp'] )
+					)
+				);
+			}
+			$rows .= self::render_email_row( __( 'Site', 'cronpulse' ), $site );
+
+			$html = self::render_email_html(
+				__( 'Overdue', 'cronpulse' ),
+				'#996800',
+				__( 'Cron job hasn\'t run on schedule', 'cronpulse' ),
+				$hook,
+				sprintf(
+					/* translators: %s = human-readable duration, e.g. "2 hours" */
+					__( 'This hook was due to run over %s ago and still hasn\'t fired.', 'cronpulse' ),
+					$overdue
+				),
+				$rows,
+				$dashboard,
+				__( 'Open Dashboard', 'cronpulse' ),
+				$site
+			);
 		} else {
+			$count     = (int) $context['count'];
+			$status    = (string) $context['status'];
+			$threshold = self::get_thresholds_for( $hook )['failure_threshold'];
+
 			$subject = sprintf( '[Cron Pulse] %s is failing on %s', $hook, $site );
-			$body    = sprintf(
+			$plain   = sprintf(
 				"The cron hook \"%s\" has failed %d times in a row (last status: %s).\n\nSite: %s\nDashboard: %s",
 				$hook,
-				$context['count'],
-				$context['status'],
+				$count,
+				$status,
 				$site,
 				$dashboard
+			);
+
+			$rows = self::render_email_row(
+				__( 'Consecutive failures', 'cronpulse' ),
+				sprintf(
+					/* translators: 1: number of consecutive failures, 2: configured alert threshold */
+					__( '%1$d (alert threshold: %2$d)', 'cronpulse' ),
+					$count,
+					$threshold
+				)
+			);
+			$rows .= self::render_email_row( __( 'Last status', 'cronpulse' ), ucfirst( $status ) );
+			if ( $last_run && ! empty( $last_run['message'] ) ) {
+				$rows .= self::render_email_row( __( 'Last error', 'cronpulse' ), (string) $last_run['message'], true );
+			}
+			if ( $last_run ) {
+				$rows .= self::render_email_row( __( 'Last attempt', 'cronpulse' ), CronPulse_Admin_Page::format_time( (int) $last_run['timestamp'] ) );
+			}
+			$rows .= self::render_email_row( __( 'Site', 'cronpulse' ), $site );
+
+			$html = self::render_email_html(
+				__( 'Failing', 'cronpulse' ),
+				'#d63638',
+				__( 'Cron job is failing', 'cronpulse' ),
+				$hook,
+				sprintf(
+					/* translators: %d = number of consecutive failures */
+					__( 'This hook has now failed %d times in a row.', 'cronpulse' ),
+					$count
+				),
+				$rows,
+				$dashboard,
+				__( 'Open Dashboard', 'cronpulse' ),
+				$site
 			);
 		}
 
 		$email = $settings['email'] ?: get_option( 'admin_email' );
 		if ( $email ) {
-			self::send_and_log( $email, $subject, $body, $type );
+			self::send_and_log( $email, $subject, $html, $plain, $type );
 		}
 
 		if ( ! empty( $settings['webhook'] ) ) {
@@ -381,12 +461,86 @@ class CronPulse_Alerts {
 					'hook'    => $hook,
 					'type'    => $type,
 					'site'    => home_url(),
-					'message' => $body,
-					'text'    => $body,
-					'content' => $body,
+					'message' => $plain,
+					'text'    => $plain,
+					'content' => $plain,
 				] ),
 			] );
 		}
+	}
+
+	// -------------------------------------------------------------------------
+	// Email template
+	// -------------------------------------------------------------------------
+
+	/**
+	 * One label/value row for the details table inside render_email_html().
+	 * $code wraps the value in a dark monospace block — used for raw error
+	 * output, mirroring the Email Debug Log's own styling.
+	 */
+	public static function render_email_row( string $label, string $value, bool $code = false ): string {
+		$value_html = $code
+			? '<code style="display:block;background:#1d2327;color:#c3c4c7;border-radius:4px;padding:10px 12px;font-family:Menlo,Consolas,monospace;font-size:12px;line-height:1.5;white-space:pre-wrap;word-break:break-word;">' . esc_html( $value ) . '</code>'
+			: esc_html( $value );
+
+		return '<tr>'
+			. '<td style="padding:10px 0;border-bottom:1px solid #f0f0f1;color:#787c82;font-size:13px;vertical-align:top;width:140px;">' . esc_html( $label ) . '</td>'
+			. '<td style="padding:10px 0;border-bottom:1px solid #f0f0f1;color:#1d2327;font-size:13px;vertical-align:top;">' . $value_html . '</td>'
+			. '</tr>';
+	}
+
+	/**
+	 * A self-contained HTML email — inline styles and a table-based layout
+	 * throughout, since email clients (Gmail especially) strip <style>
+	 * blocks unpredictably and have inconsistent flexbox/grid support.
+	 *
+	 * @param string $rows Pre-built <tr> markup from render_email_row() — the
+	 *                     only parameter here that's trusted HTML rather than
+	 *                     a plain string this method escapes itself.
+	 */
+	public static function render_email_html(
+		string $badge_label,
+		string $badge_color,
+		string $heading,
+		string $hook,
+		string $intro,
+		string $rows,
+		string $cta_url,
+		string $cta_label,
+		string $site
+	): string {
+		$hook_html = '' !== $hook
+			? '<tr><td style="padding:0 28px 4px;"><code style="display:inline-block;background:#f0f0f1;color:#1d2327;border-radius:4px;padding:4px 10px;font-family:Menlo,Consolas,monospace;font-size:13px;word-break:break-all;">' . esc_html( $hook ) . '</code></td></tr>'
+			: '';
+
+		return '<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f0f0f1;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f0f0f1;padding:32px 16px;">
+<tr><td align="center">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:6px;border:1px solid #c3c4c7;">
+<tr><td style="padding:24px 28px 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+<td style="font-size:14px;font-weight:700;color:#1d2327;">' . esc_html__( 'Cron Pulse', 'cronpulse' ) . '</td>
+<td align="right"><span style="display:inline-block;background:' . esc_attr( $badge_color ) . ';color:#ffffff;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;border-radius:10px;padding:3px 10px;">' . esc_html( $badge_label ) . '</span></td>
+</tr></table>
+</td></tr>
+<tr><td style="padding:20px 28px 4px;"><div style="font-size:18px;font-weight:600;color:#1d2327;">' . esc_html( $heading ) . '</div></td></tr>
+' . $hook_html . '
+<tr><td style="padding:14px 28px 4px;color:#3c434a;font-size:14px;line-height:1.6;">' . esc_html( $intro ) . '</td></tr>
+<tr><td style="padding:8px 28px 4px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">' . $rows . '</table></td></tr>
+<tr><td style="padding:24px 28px 28px;"><a href="' . esc_url( $cta_url ) . '" style="display:inline-block;background:#2271b1;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:11px 22px;border-radius:4px;">' . esc_html( $cta_label ) . '</a></td></tr>
+<tr><td style="padding:16px 28px;border-top:1px solid #f0f0f1;color:#787c82;font-size:12px;line-height:1.6;">' . sprintf(
+			/* translators: %s = site domain, wrapped in <strong> */
+			__( 'Sent by Cron Pulse for %s. Manage alert thresholds, snooze incidents, or turn this off entirely from the Settings tab on your dashboard.', 'cronpulse' ),
+			'<strong>' . esc_html( $site ) . '</strong>'
+		) . '</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>';
 	}
 
 	/**
@@ -399,8 +553,12 @@ class CronPulse_Alerts {
 	/**
 	 * Send via wp_mail() and record the outcome (including the real PHPMailer
 	 * error on failure, captured via wp_mail_failed) in the email log.
+	 *
+	 * @param string $html_body  Sent as the message body (HTML).
+	 * @param string $plain_body Set as PHPMailer's AltBody — the fallback an
+	 *                           HTML-incapable mail client renders instead.
 	 */
-	public static function send_and_log( string $to, string $subject, string $body, string $type = 'alert' ): bool {
+	public static function send_and_log( string $to, string $subject, string $html_body, string $plain_body, string $type = 'alert' ): bool {
 		$settings = self::get_settings();
 
 		CronPulse_Debug_Log::write( sprintf(
@@ -411,14 +569,26 @@ class CronPulse_Alerts {
 			! empty( $settings['smtp_enabled'] ) ? 'SMTP (' . $settings['smtp_host'] . ':' . $settings['smtp_port'] . ')' : 'default mail()'
 		) );
 
-		$error   = null;
-		$capture = static function ( $wp_error ) use ( &$error ) {
+		$error    = null;
+		$capture  = static function ( $wp_error ) use ( &$error ) {
 			$error = $wp_error;
+		};
+		$set_html = static function () {
+			return 'text/html';
+		};
+		$set_alt  = static function ( $phpmailer ) use ( $plain_body ) {
+			$phpmailer->AltBody = $plain_body;
 		};
 
 		add_action( 'wp_mail_failed', $capture );
-		$sent = wp_mail( $to, $subject, $body );
+		add_filter( 'wp_mail_content_type', $set_html );
+		add_action( 'phpmailer_init', $set_alt );
+
+		$sent = wp_mail( $to, $subject, $html_body );
+
 		remove_action( 'wp_mail_failed', $capture );
+		remove_filter( 'wp_mail_content_type', $set_html );
+		remove_action( 'phpmailer_init', $set_alt );
 
 		CronPulse_Debug_Log::write( sprintf(
 			'Result: %s%s',
@@ -727,14 +897,15 @@ class CronPulse_Alerts {
 			<h4><?php esc_html_e( 'Your Own Endpoint', 'cronpulse' ); ?></h4>
 			<p><?php esc_html_e( 'Receives an HTTP POST, Content-Type: application/json:', 'cronpulse' ); ?></p>
 			<pre class="cp-help-code">{
-  "plugin": "cronpulse",
-  "hook": "my_cron_hook",
-  "type": "failure",
-  "site": "https://example.com",
-  "message": "...",
-  "text": "...",
-  "content": "..."
-}</pre>
+				"plugin": "cronpulse",
+				"hook": "my_cron_hook",
+				"type": "failure",
+				"site": "https://example.com",
+				"message": "...",
+				"text": "...",
+				"content": "..."
+				}
+			</pre>
 			<p class="description"><?php esc_html_e( '"text" and "content" are included so the same payload works as-is with Slack and Discord — safe to ignore them if you only need the structured fields.', 'cronpulse' ); ?></p>
 
 			<p class="description"><?php esc_html_e( 'Once saved, use "Send Test Webhook" above to confirm it actually arrives.', 'cronpulse' ); ?></p>

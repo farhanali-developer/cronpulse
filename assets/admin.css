@@ -15,7 +15,7 @@
 
 /* Wrap ---------------------------------------------------- */
 .cp-wrap {
-	max-width: 1200px;
+	max-width: 3840px;
 }
 
 .cp-title {
@@ -439,6 +439,11 @@
 	box-shadow: var(--cp-shadow);
 	padding: 18px 20px;
 }
+
+button.cp-test-webhook{
+	margin-top: 10px;
+}
+
 @media (max-width: 1100px) {
 	.cp-email-log-row {
 		flex-direction: column;
