@@ -59,7 +59,7 @@ class CronPulse_Debug_Log {
 		// instead of every file_put_contents() below throwing a PHP warning —
 		// which, if display_errors is on, can leak into and break a JSON
 		// AJAX response the exact same way the original bug report did.
-		if ( ! is_writable( $dir ) ) {
+		if ( ! wp_is_writable( $dir ) ) {
 			return false;
 		}
 

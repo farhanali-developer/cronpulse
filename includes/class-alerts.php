@@ -78,9 +78,9 @@ class CronPulse_Alerts {
 		// Password field is left blank in the form on every page load (see
 		// render_settings_tab()) so it never round-trips through HTML source.
 		// An empty submission means "unchanged", not "clear it".
-		$existing_password = self::get_settings()['smtp_password'];
-		$submitted_password = wp_unslash( $_POST['cronpulse_smtp_password'] ?? '' );
-		$password            = '' === $submitted_password ? $existing_password : sanitize_text_field( $submitted_password );
+		$existing_password   = self::get_settings()['smtp_password'];
+		$submitted_password  = sanitize_text_field( wp_unslash( $_POST['cronpulse_smtp_password'] ?? '' ) );
+		$password            = '' === $submitted_password ? $existing_password : $submitted_password;
 
 		$encryption = sanitize_key( wp_unslash( $_POST['cronpulse_smtp_encryption'] ?? 'tls' ) );
 		if ( ! in_array( $encryption, [ 'none', 'ssl', 'tls' ], true ) ) {
