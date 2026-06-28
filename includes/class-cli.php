@@ -1,13 +1,13 @@
 <?php
 /**
- * CP_CLI_Command
+ * CronPulse_CLI_Command
  *
  * WP-CLI command for scripting cron health checks across sites
  * (e.g. agencies running this in a loop over multiple client installs).
  */
 defined( 'ABSPATH' ) || exit;
 
-class CP_CLI_Command {
+class CronPulse_CLI_Command {
 
 	/**
 	 * Show the status of all scheduled WP-Cron jobs tracked by Cron Pulse.
@@ -45,7 +45,7 @@ class CP_CLI_Command {
 	 * @when after_wp_load
 	 */
 	public function status( array $args, array $assoc_args ): void {
-		$jobs = CP_Admin_Page::get_jobs();
+		$jobs = CronPulse_Admin_Page::get_jobs();
 
 		$filter = $assoc_args['status'] ?? '';
 		if ( $filter ) {
@@ -82,4 +82,4 @@ class CP_CLI_Command {
 	}
 }
 
-WP_CLI::add_command( 'cronpulse', 'CP_CLI_Command' );
+WP_CLI::add_command( 'cronpulse', 'CronPulse_CLI_Command' );

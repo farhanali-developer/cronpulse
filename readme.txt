@@ -3,7 +3,7 @@ Contributors:      farhanalidev
 Tags:              cron, cron jobs, wp-cron, developer tools, debugging
 Requires at least: 5.8
 Tested up to:      6.8
-Stable tag:        1.2.0
+Stable tag:        1.3.0
 Requires PHP:      7.4
 License:           GPL-2.0-or-later
 License URI:       https://www.gnu.org/licenses/gpl-2.0.html
@@ -72,7 +72,7 @@ No. The tracker hooks fire only during cron execution (not on regular page loads
 
 = Where is the log stored? =
 
-In the WordPress options table under the key `cp_execution_log`. The entry cap defaults to 200 and is configurable from the Settings tab (10–5000). It's cleared on uninstall.
+In the WordPress options table under the key `cronpulse_execution_log`. The entry cap defaults to 200 and is configurable from the Settings tab (10–5000). It's cleared on uninstall.
 
 = Is it compatible with Action Scheduler or WooCommerce? =
 
@@ -91,6 +91,12 @@ It acknowledges the current incident for that hook so no further alert is sent f
 It's evaluated on every page load along with everything else the plugin tracks, so it only updates when you load a page — there's no background process polling for it.
 
 == Changelog ==
+
+= 1.3.0 =
+* Fixed: clicking Run Now wrote two log entries for the same run (the wrapper hooked to every cron action fired alongside the explicit log call)
+* Fixed: cron tracking now only attaches during a genuine WP-Cron run (wp_doing_cron()), so it no longer records unrelated direct invocations of a same-named hook
+* Fixed: per-hook run duration no longer relies solely on a shared transient, so overlapping runs of the same hook can't clobber each other's timing
+* Renamed all internal PHP constants, classes, options, transients, and AJAX actions to a longer, more distinctive prefix (`cronpulse_` / `CronPulse_`) to avoid collisions with other plugins
 
 = 1.2.0 =
 * Added admin bar badge showing a count of overdue/failing jobs on any page
@@ -113,6 +119,9 @@ It's evaluated on every page load along with everything else the plugin tracks, 
 * Initial release
 
 == Upgrade Notice ==
+
+= 1.3.0 =
+Internal option/constant names changed for WordPress.org compliance. If you installed an earlier version, your execution log and alert settings will reset on upgrade (the plugin starts fresh under the new names).
 
 = 1.2.0 =
 No action needed. New per-job alert overrides and REST endpoint are opt-in.

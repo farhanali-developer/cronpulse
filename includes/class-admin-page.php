@@ -1,12 +1,12 @@
 <?php
 /**
- * CP_Admin_Page
+ * CronPulse_Admin_Page
  *
  * Registers the wp-admin menu page and renders the cron dashboard.
  */
 defined( 'ABSPATH' ) || exit;
 
-class CP_Admin_Page {
+class CronPulse_Admin_Page {
 
 	public static function init(): void {
 		add_action( 'admin_menu',            [ __CLASS__, 'register_menu' ] );
@@ -28,21 +28,21 @@ class CP_Admin_Page {
 			return;
 		}
 		wp_enqueue_style(
-			'cp-admin',
-			CP_PLUGIN_URL . 'assets/admin.css',
+			'cronpulse-admin',
+			CRONPULSE_PLUGIN_URL . 'assets/admin.css',
 			[],
-			CP_VERSION
+			CRONPULSE_VERSION
 		);
 		wp_enqueue_script(
-			'cp-admin',
-			CP_PLUGIN_URL . 'assets/admin.js',
+			'cronpulse-admin',
+			CRONPULSE_PLUGIN_URL . 'assets/admin.js',
 			[ 'jquery' ],
-			CP_VERSION,
+			CRONPULSE_VERSION,
 			true
 		);
-		wp_localize_script( 'cp-admin', 'cpData', [
+		wp_localize_script( 'cronpulse-admin', 'cronpulseData', [
 			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-			'nonce'   => wp_create_nonce( 'cp_nonce' ),
+			'nonce'   => wp_create_nonce( 'cronpulse_nonce' ),
 			'i18n'    => [
 				'running'           => __( 'Running…', 'cronpulse' ),
 				'success'           => __( 'Triggered successfully', 'cronpulse' ),
@@ -65,9 +65,9 @@ class CP_Admin_Page {
 		}
 
 		$jobs           = self::get_jobs();
-		$log            = CP_Cron_Tracker::get_log();
+		$log            = CronPulse_Cron_Tracker::get_log();
 		$schedules      = wp_get_schedules();
-		$alerts_enabled = CP_Alerts::get_settings()['enabled'];
+		$alerts_enabled = CronPulse_Alerts::get_settings()['enabled'];
 
 		// Summary counts
 		$total   = count( $jobs );
@@ -175,10 +175,10 @@ class CP_Admin_Page {
 						$schedule_label = isset( $schedules[ $job['schedule'] ] )
 							? $schedules[ $job['schedule'] ]['display']
 							: ( $job['schedule'] ?: '—' );
-						$last_run    = CP_Cron_Tracker::get_last_run( $job['hook'] );
+						$last_run    = CronPulse_Cron_Tracker::get_last_run( $job['hook'] );
 						$duration_ms = isset( $last_run['duration'] ) ? (int) $last_run['duration'] : -1;
 						$duration    = $duration_ms >= 0 ? $duration_ms . ' ms' : '—';
-						$sparkline   = self::render_sparkline( CP_Cron_Tracker::get_recent_durations( $job['hook'], 10 ) );
+						$sparkline   = self::render_sparkline( CronPulse_Cron_Tracker::get_recent_durations( $job['hook'], 10 ) );
 						$needs_alert_action = $alerts_enabled && in_array( $job['status'], [ 'overdue', 'failing' ], true );
 					?>
 					<tr
@@ -256,7 +256,7 @@ class CP_Admin_Page {
 							/* translators: 1: number of log entries stored, 2: configured retention limit */
 							esc_html__( '%1$d entries (newest first, max %2$d)', 'cronpulse' ),
 							count( $log ),
-							CP_Alerts::get_settings()['log_retention']
+							CronPulse_Alerts::get_settings()['log_retention']
 						); ?>
 					</span>
 				</div>
@@ -301,7 +301,7 @@ class CP_Admin_Page {
 
 			<!-- Alerts tab -->
 			<div id="cp-alerts" class="cp-tab-panel" style="display:none;">
-				<?php CP_Alerts::render_settings_tab(); ?>
+				<?php CronPulse_Alerts::render_settings_tab(); ?>
 			</div>
 
 		</div><!-- .cp-wrap -->
@@ -314,7 +314,7 @@ class CP_Admin_Page {
 
 	/**
 	 * Build a flat list of all scheduled cron jobs with status.
-	 * Public so CP_CLI_Command can reuse the same status logic.
+	 * Public so CronPulse_CLI_Command can reuse the same status logic.
 	 */
 	public static function get_jobs(): array {
 		$crons = _get_cron_array();
@@ -334,7 +334,7 @@ class CP_Admin_Page {
 					continue;
 				}
 				foreach ( $events as $sig => $event ) {
-					$last_run = CP_Cron_Tracker::get_last_run( $hook );
+					$last_run = CronPulse_Cron_Tracker::get_last_run( $hook );
 
 					if ( (int) $timestamp < $now ) {
 						$status = 'overdue';

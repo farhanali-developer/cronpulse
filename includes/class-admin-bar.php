@@ -1,6 +1,6 @@
 <?php
 /**
- * CP_Admin_Bar
+ * CronPulse_Admin_Bar
  *
  * Adds a small warning badge to the WP toolbar when any job is overdue
  * or failing, so problems are visible from any page without remembering
@@ -8,7 +8,7 @@
  */
 defined( 'ABSPATH' ) || exit;
 
-class CP_Admin_Bar {
+class CronPulse_Admin_Bar {
 
 	public static function init(): void {
 		add_action( 'admin_bar_menu',       [ __CLASS__, 'add_node' ], 999 );
@@ -21,7 +21,7 @@ class CP_Admin_Bar {
 			return;
 		}
 
-		$jobs  = CP_Admin_Page::get_jobs();
+		$jobs  = CronPulse_Admin_Page::get_jobs();
 		$count = count( array_filter( $jobs, static function ( $job ) {
 			return in_array( $job['status'], [ 'overdue', 'failing' ], true );
 		} ) );

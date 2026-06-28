@@ -1,4 +1,4 @@
-/* global cpData, jQuery */
+/* global cronpulseData, jQuery */
 ( function ( $ ) {
 	'use strict';
 
@@ -156,11 +156,11 @@
 		const hook  = $btn.data( 'hook' );
 		const args  = $btn.data( 'args' );
 
-		$btn.addClass( 'is-loading' ).text( cpData.i18n.running );
+		$btn.addClass( 'is-loading' ).text( cronpulseData.i18n.running );
 
-		$.post( cpData.ajaxUrl, {
-			action : 'cp_run_now',
-			nonce  : cpData.nonce,
+		$.post( cronpulseData.ajaxUrl, {
+			action : 'cronpulse_run_now',
+			nonce  : cronpulseData.nonce,
 			hook   : hook,
 			args   : JSON.stringify( args ),
 		} )
@@ -193,11 +193,11 @@
 				renderTable();
 
 			} else {
-				flash( res.data.message || cpData.i18n.error, 'error' );
+				flash( res.data.message || cronpulseData.i18n.error, 'error' );
 			}
 		} )
 		.fail( function () {
-			flash( cpData.i18n.error, 'error' );
+			flash( cronpulseData.i18n.error, 'error' );
 		} )
 		.always( function () {
 			$btn.removeClass( 'is-loading' ).text( 'Run Now' );
@@ -208,13 +208,13 @@
 	// Clear log
 	// -------------------------------------------------------------------------
 	$( document ).on( 'click', '.cp-clear-log', function () {
-		if ( ! window.confirm( cpData.i18n.confirmClear ) ) {
+		if ( ! window.confirm( cronpulseData.i18n.confirmClear ) ) {
 			return;
 		}
 
-		$.post( cpData.ajaxUrl, {
-			action : 'cp_clear_log',
-			nonce  : cpData.nonce,
+		$.post( cronpulseData.ajaxUrl, {
+			action : 'cronpulse_clear_log',
+			nonce  : cronpulseData.nonce,
 		} )
 		.done( function ( res ) {
 			if ( res.success ) {
@@ -228,7 +228,7 @@
 			}
 		} )
 		.fail( function () {
-			flash( cpData.i18n.error, 'error' );
+			flash( cronpulseData.i18n.error, 'error' );
 		} );
 	} );
 
@@ -239,16 +239,16 @@
 		const $btn = $( this );
 		const hook = $btn.data( 'hook' );
 
-		const confirmMsg = cpData.i18n.confirmUnschedule.replace( '%s', hook );
+		const confirmMsg = cronpulseData.i18n.confirmUnschedule.replace( '%s', hook );
 		if ( ! window.confirm( confirmMsg ) ) {
 			return;
 		}
 
 		$btn.prop( 'disabled', true );
 
-		$.post( cpData.ajaxUrl, {
-			action    : 'cp_unschedule',
-			nonce     : cpData.nonce,
+		$.post( cronpulseData.ajaxUrl, {
+			action    : 'cronpulse_unschedule',
+			nonce     : cronpulseData.nonce,
 			hook      : hook,
 			timestamp : $btn.data( 'timestamp' ),
 			sig       : $btn.data( 'sig' ),
@@ -259,12 +259,12 @@
 				$btn.closest( 'tr' ).remove();
 				renderTable();
 			} else {
-				flash( res.data.message || cpData.i18n.error, 'error' );
+				flash( res.data.message || cronpulseData.i18n.error, 'error' );
 				$btn.prop( 'disabled', false );
 			}
 		} )
 		.fail( function () {
-			flash( cpData.i18n.error, 'error' );
+			flash( cronpulseData.i18n.error, 'error' );
 			$btn.prop( 'disabled', false );
 		} );
 	} );
@@ -278,9 +278,9 @@
 
 		$btn.prop( 'disabled', true );
 
-		$.post( cpData.ajaxUrl, {
-			action : 'cp_snooze',
-			nonce  : cpData.nonce,
+		$.post( cronpulseData.ajaxUrl, {
+			action : 'cronpulse_snooze',
+			nonce  : cronpulseData.nonce,
 			hook   : hook,
 		} )
 		.done( function ( res ) {
@@ -288,12 +288,12 @@
 				flash( res.data.message, 'success' );
 				$btn.remove();
 			} else {
-				flash( res.data.message || cpData.i18n.error, 'error' );
+				flash( res.data.message || cronpulseData.i18n.error, 'error' );
 				$btn.prop( 'disabled', false );
 			}
 		} )
 		.fail( function () {
-			flash( cpData.i18n.error, 'error' );
+			flash( cronpulseData.i18n.error, 'error' );
 			$btn.prop( 'disabled', false );
 		} );
 	} );

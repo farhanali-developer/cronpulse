@@ -1,6 +1,6 @@
 <?php
 /**
- * CP_Alerts
+ * CronPulse_Alerts
  *
  * Tracks consecutive failures and overdue duration per hook, and sends an
  * email/webhook notification once a configured threshold is crossed.
@@ -10,7 +10,7 @@
  */
 defined( 'ABSPATH' ) || exit;
 
-class CP_Alerts {
+class CronPulse_Alerts {
 
 	public static function init(): void {
 		add_action( 'admin_init', [ __CLASS__, 'maybe_save_settings' ] );
@@ -27,11 +27,11 @@ class CP_Alerts {
 			'overdue_minutes'   => 30,
 			'email'             => '',
 			'webhook'           => '',
-			'log_retention'     => CP_LOG_LIMIT,
+			'log_retention'     => CRONPULSE_LOG_LIMIT,
 			'per_job'           => [],
 		];
 
-		$settings = get_option( CP_OPTION_ALERTS, [] );
+		$settings = get_option( CRONPULSE_OPTION_ALERTS, [] );
 
 		return wp_parse_args( is_array( $settings ) ? $settings : [], $defaults );
 	}
@@ -51,25 +51,25 @@ class CP_Alerts {
 	}
 
 	public static function maybe_save_settings(): void {
-		if ( empty( $_POST['cp_alerts_submit'] ) ) {
+		if ( empty( $_POST['cronpulse_alerts_submit'] ) ) {
 			return;
 		}
 
-		check_admin_referer( 'cp_save_alerts', 'cp_alerts_nonce' );
+		check_admin_referer( 'cronpulse_save_alerts', 'cronpulse_alerts_nonce' );
 
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_die( esc_html__( 'Unauthorized.', 'cronpulse' ) );
 		}
 
-		$email = sanitize_email( wp_unslash( $_POST['cp_alert_email'] ?? '' ) );
+		$email = sanitize_email( wp_unslash( $_POST['cronpulse_alert_email'] ?? '' ) );
 
-		update_option( CP_OPTION_ALERTS, [
-			'enabled'           => ! empty( $_POST['cp_alert_enabled'] ),
-			'failure_threshold' => max( 1, absint( $_POST['cp_failure_threshold'] ?? 3 ) ),
-			'overdue_minutes'   => max( 1, absint( $_POST['cp_overdue_minutes'] ?? 30 ) ),
+		update_option( CRONPULSE_OPTION_ALERTS, [
+			'enabled'           => ! empty( $_POST['cronpulse_alert_enabled'] ),
+			'failure_threshold' => max( 1, absint( $_POST['cronpulse_failure_threshold'] ?? 3 ) ),
+			'overdue_minutes'   => max( 1, absint( $_POST['cronpulse_overdue_minutes'] ?? 30 ) ),
 			'email'             => is_email( $email ) ? $email : '',
-			'webhook'           => esc_url_raw( wp_unslash( $_POST['cp_alert_webhook'] ?? '' ) ),
-			'log_retention'     => min( 5000, max( 10, absint( $_POST['cp_log_retention'] ?? CP_LOG_LIMIT ) ) ),
+			'webhook'           => esc_url_raw( wp_unslash( $_POST['cronpulse_alert_webhook'] ?? '' ) ),
+			'log_retention'     => min( 5000, max( 10, absint( $_POST['cronpulse_log_retention'] ?? CRONPULSE_LOG_LIMIT ) ) ),
 			'per_job'           => self::parse_overrides_from_post(),
 		], false );
 
@@ -85,10 +85,10 @@ class CP_Alerts {
 	private static function parse_overrides_from_post(): array {
 		$per_job = [];
 
-		$hooks      = (array) ( $_POST['cp_override_hook'] ?? [] );
-		$failures   = (array) ( $_POST['cp_override_failure'] ?? [] );
-		$overdues   = (array) ( $_POST['cp_override_overdue'] ?? [] );
-		$removed    = array_flip( (array) ( $_POST['cp_override_remove'] ?? [] ) );
+		$hooks      = (array) ( $_POST['cronpulse_override_hook'] ?? [] );
+		$failures   = (array) ( $_POST['cronpulse_override_failure'] ?? [] );
+		$overdues   = (array) ( $_POST['cronpulse_override_overdue'] ?? [] );
+		$removed    = array_flip( (array) ( $_POST['cronpulse_override_remove'] ?? [] ) );
 
 		foreach ( $hooks as $i => $raw_hook ) {
 			if ( isset( $removed[ $i ] ) ) {
@@ -106,11 +106,11 @@ class CP_Alerts {
 			];
 		}
 
-		$new_hook = sanitize_key( wp_unslash( $_POST['cp_new_override_hook'] ?? '' ) );
+		$new_hook = sanitize_key( wp_unslash( $_POST['cronpulse_new_override_hook'] ?? '' ) );
 		if ( ! empty( $new_hook ) ) {
 			$per_job[ $new_hook ] = [
-				'failure_threshold' => max( 1, absint( $_POST['cp_new_override_failure'] ?? 3 ) ),
-				'overdue_minutes'   => max( 1, absint( $_POST['cp_new_override_overdue'] ?? 30 ) ),
+				'failure_threshold' => max( 1, absint( $_POST['cronpulse_new_override_failure'] ?? 3 ) ),
+				'overdue_minutes'   => max( 1, absint( $_POST['cronpulse_new_override_overdue'] ?? 30 ) ),
 			];
 		}
 
@@ -134,7 +134,7 @@ class CP_Alerts {
 
 		$threshold = self::get_thresholds_for( $hook )['overdue_minutes'];
 
-		$streaks = get_option( CP_OPTION_STREAKS, [] );
+		$streaks = get_option( CRONPULSE_OPTION_STREAKS, [] );
 		$entry   = $streaks[ $hook ] ?? self::default_streak();
 
 		if ( $next_run < time() ) {
@@ -154,7 +154,7 @@ class CP_Alerts {
 		}
 
 		$streaks[ $hook ] = $entry;
-		update_option( CP_OPTION_STREAKS, $streaks, false );
+		update_option( CRONPULSE_OPTION_STREAKS, $streaks, false );
 	}
 
 	/**
@@ -169,7 +169,7 @@ class CP_Alerts {
 
 		$threshold = self::get_thresholds_for( $hook )['failure_threshold'];
 
-		$streaks = get_option( CP_OPTION_STREAKS, [] );
+		$streaks = get_option( CRONPULSE_OPTION_STREAKS, [] );
 		$entry   = $streaks[ $hook ] ?? self::default_streak();
 
 		$is_failure = in_array( $status, [ 'fatal', 'incomplete', 'stuck' ], true );
@@ -187,7 +187,7 @@ class CP_Alerts {
 		}
 
 		$streaks[ $hook ] = $entry;
-		update_option( CP_OPTION_STREAKS, $streaks, false );
+		update_option( CRONPULSE_OPTION_STREAKS, $streaks, false );
 	}
 
 	/**
@@ -196,14 +196,14 @@ class CP_Alerts {
 	 * fires until this streak clears and a fresh one starts.
 	 */
 	public static function snooze( string $hook ): void {
-		$streaks = get_option( CP_OPTION_STREAKS, [] );
+		$streaks = get_option( CRONPULSE_OPTION_STREAKS, [] );
 		$entry   = $streaks[ $hook ] ?? self::default_streak();
 
 		$entry['failure_alerted'] = true;
 		$entry['overdue_alerted'] = true;
 
 		$streaks[ $hook ] = $entry;
-		update_option( CP_OPTION_STREAKS, $streaks, false );
+		update_option( CRONPULSE_OPTION_STREAKS, $streaks, false );
 	}
 
 	private static function default_streak(): array {
@@ -275,7 +275,7 @@ class CP_Alerts {
 			static function ( $job ) {
 				return $job['hook'];
 			},
-			CP_Admin_Page::get_jobs()
+			CronPulse_Admin_Page::get_jobs()
 		) ) );
 		$available = array_values( array_diff( $all_hooks, array_keys( $per_job ) ) );
 		?>
@@ -296,24 +296,24 @@ class CP_Alerts {
 				<tr>
 					<td>
 						<code><?php echo esc_html( $hook ); ?></code>
-						<input type="hidden" name="cp_override_hook[<?php echo esc_attr( $i ); ?>]" value="<?php echo esc_attr( $hook ); ?>" />
+						<input type="hidden" name="cronpulse_override_hook[<?php echo esc_attr( $i ); ?>]" value="<?php echo esc_attr( $hook ); ?>" />
 					</td>
-					<td><input type="number" min="1" name="cp_override_failure[<?php echo esc_attr( $i ); ?>]" value="<?php echo esc_attr( $override['failure_threshold'] ); ?>" class="small-text" /></td>
-					<td><input type="number" min="1" name="cp_override_overdue[<?php echo esc_attr( $i ); ?>]" value="<?php echo esc_attr( $override['overdue_minutes'] ); ?>" class="small-text" /></td>
-					<td><input type="checkbox" name="cp_override_remove[]" value="<?php echo esc_attr( $i ); ?>" /></td>
+					<td><input type="number" min="1" name="cronpulse_override_failure[<?php echo esc_attr( $i ); ?>]" value="<?php echo esc_attr( $override['failure_threshold'] ); ?>" class="small-text" /></td>
+					<td><input type="number" min="1" name="cronpulse_override_overdue[<?php echo esc_attr( $i ); ?>]" value="<?php echo esc_attr( $override['overdue_minutes'] ); ?>" class="small-text" /></td>
+					<td><input type="checkbox" name="cronpulse_override_remove[]" value="<?php echo esc_attr( $i ); ?>" /></td>
 				</tr>
 			<?php $i++; endforeach; ?>
 				<tr>
 					<td>
-						<select name="cp_new_override_hook">
+						<select name="cronpulse_new_override_hook">
 							<option value=""><?php esc_html_e( '— Add a hook —', 'cronpulse' ); ?></option>
 							<?php foreach ( $available as $hook ) : ?>
 								<option value="<?php echo esc_attr( $hook ); ?>"><?php echo esc_html( $hook ); ?></option>
 							<?php endforeach; ?>
 						</select>
 					</td>
-					<td><input type="number" min="1" name="cp_new_override_failure" value="3" class="small-text" /></td>
-					<td><input type="number" min="1" name="cp_new_override_overdue" value="30" class="small-text" /></td>
+					<td><input type="number" min="1" name="cronpulse_new_override_failure" value="3" class="small-text" /></td>
+					<td><input type="number" min="1" name="cronpulse_new_override_overdue" value="30" class="small-text" /></td>
 					<td>—</td>
 				</tr>
 			</tbody>
@@ -325,55 +325,55 @@ class CP_Alerts {
 		$settings = self::get_settings();
 		?>
 		<form method="post" action="">
-			<?php wp_nonce_field( 'cp_save_alerts', 'cp_alerts_nonce' ); ?>
-			<input type="hidden" name="cp_alerts_submit" value="1" />
+			<?php wp_nonce_field( 'cronpulse_save_alerts', 'cronpulse_alerts_nonce' ); ?>
+			<input type="hidden" name="cronpulse_alerts_submit" value="1" />
 
 			<h2><?php esc_html_e( 'Alerts', 'cronpulse' ); ?></h2>
 			<table class="form-table" role="presentation">
 				<tr>
 					<th scope="row">
-						<label for="cp-alert-enabled"><?php esc_html_e( 'Enable alerts', 'cronpulse' ); ?></label>
+						<label for="cronpulse-alert-enabled"><?php esc_html_e( 'Enable alerts', 'cronpulse' ); ?></label>
 					</th>
 					<td>
 						<label>
-							<input type="checkbox" id="cp-alert-enabled" name="cp_alert_enabled" value="1" <?php checked( $settings['enabled'] ); ?> />
+							<input type="checkbox" id="cronpulse-alert-enabled" name="cronpulse_alert_enabled" value="1" <?php checked( $settings['enabled'] ); ?> />
 							<?php esc_html_e( 'Notify me when a job is failing or overdue', 'cronpulse' ); ?>
 						</label>
 					</td>
 				</tr>
 				<tr>
 					<th scope="row">
-						<label for="cp-failure-threshold"><?php esc_html_e( 'Failure threshold', 'cronpulse' ); ?></label>
+						<label for="cronpulse-failure-threshold"><?php esc_html_e( 'Failure threshold', 'cronpulse' ); ?></label>
 					</th>
 					<td>
-						<input type="number" min="1" id="cp-failure-threshold" name="cp_failure_threshold" value="<?php echo esc_attr( $settings['failure_threshold'] ); ?>" class="small-text" />
+						<input type="number" min="1" id="cronpulse-failure-threshold" name="cronpulse_failure_threshold" value="<?php echo esc_attr( $settings['failure_threshold'] ); ?>" class="small-text" />
 						<p class="description"><?php esc_html_e( 'Alert after this many consecutive failed runs for a job.', 'cronpulse' ); ?></p>
 					</td>
 				</tr>
 				<tr>
 					<th scope="row">
-						<label for="cp-overdue-minutes"><?php esc_html_e( 'Overdue threshold (minutes)', 'cronpulse' ); ?></label>
+						<label for="cronpulse-overdue-minutes"><?php esc_html_e( 'Overdue threshold (minutes)', 'cronpulse' ); ?></label>
 					</th>
 					<td>
-						<input type="number" min="1" id="cp-overdue-minutes" name="cp_overdue_minutes" value="<?php echo esc_attr( $settings['overdue_minutes'] ); ?>" class="small-text" />
+						<input type="number" min="1" id="cronpulse-overdue-minutes" name="cronpulse_overdue_minutes" value="<?php echo esc_attr( $settings['overdue_minutes'] ); ?>" class="small-text" />
 						<p class="description"><?php esc_html_e( 'Alert when a job has been overdue for longer than this.', 'cronpulse' ); ?></p>
 					</td>
 				</tr>
 				<tr>
 					<th scope="row">
-						<label for="cp-alert-email"><?php esc_html_e( 'Notification email', 'cronpulse' ); ?></label>
+						<label for="cronpulse-alert-email"><?php esc_html_e( 'Notification email', 'cronpulse' ); ?></label>
 					</th>
 					<td>
-						<input type="email" id="cp-alert-email" name="cp_alert_email" value="<?php echo esc_attr( $settings['email'] ); ?>" class="regular-text" placeholder="<?php echo esc_attr( get_option( 'admin_email' ) ); ?>" />
+						<input type="email" id="cronpulse-alert-email" name="cronpulse_alert_email" value="<?php echo esc_attr( $settings['email'] ); ?>" class="regular-text" placeholder="<?php echo esc_attr( get_option( 'admin_email' ) ); ?>" />
 						<p class="description"><?php esc_html_e( 'Leave blank to use the site admin email.', 'cronpulse' ); ?></p>
 					</td>
 				</tr>
 				<tr>
 					<th scope="row">
-						<label for="cp-alert-webhook"><?php esc_html_e( 'Webhook URL', 'cronpulse' ); ?></label>
+						<label for="cronpulse-alert-webhook"><?php esc_html_e( 'Webhook URL', 'cronpulse' ); ?></label>
 					</th>
 					<td>
-						<input type="url" id="cp-alert-webhook" name="cp_alert_webhook" value="<?php echo esc_attr( $settings['webhook'] ); ?>" class="regular-text" placeholder="https://" />
+						<input type="url" id="cronpulse-alert-webhook" name="cronpulse_alert_webhook" value="<?php echo esc_attr( $settings['webhook'] ); ?>" class="regular-text" placeholder="https://" />
 						<p class="description"><?php esc_html_e( 'Optional. Receives a JSON POST for every alert (Slack, Discord, or your own endpoint).', 'cronpulse' ); ?></p>
 					</td>
 				</tr>
@@ -387,10 +387,10 @@ class CP_Alerts {
 			<table class="form-table" role="presentation">
 				<tr>
 					<th scope="row">
-						<label for="cp-log-retention"><?php esc_html_e( 'Log retention', 'cronpulse' ); ?></label>
+						<label for="cronpulse-log-retention"><?php esc_html_e( 'Log retention', 'cronpulse' ); ?></label>
 					</th>
 					<td>
-						<input type="number" min="10" max="5000" id="cp-log-retention" name="cp_log_retention" value="<?php echo esc_attr( $settings['log_retention'] ); ?>" class="small-text" />
+						<input type="number" min="10" max="5000" id="cronpulse-log-retention" name="cronpulse_log_retention" value="<?php echo esc_attr( $settings['log_retention'] ); ?>" class="small-text" />
 						<p class="description"><?php esc_html_e( 'Number of execution log entries to keep (10–5000).', 'cronpulse' ); ?></p>
 					</td>
 				</tr>

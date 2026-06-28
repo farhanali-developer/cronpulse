@@ -1,13 +1,13 @@
 <?php
 /**
- * CP_Cron_Tracker
+ * CronPulse_Cron_Tracker
  *
  * Wraps every registered cron hook to measure execution time and
  * record pass/fail status in the persistent log.
  */
 defined( 'ABSPATH' ) || exit;
 
-class CP_Cron_Tracker {
+class CronPulse_Cron_Tracker {
 
 	/**
 	 * Hooks registered for tracking in the current request.
@@ -42,6 +42,15 @@ class CP_Cron_Tracker {
 
 	/**
 	 * Iterate all scheduled events and wrap their hooks.
+	 *
+	 * The before()/after() wrappers are only attached when wp_doing_cron() is
+	 * true — i.e. a genuine WP-Cron spawn or `wp cron event run`. Attaching
+	 * them unconditionally would log ANY invocation of a hook that happens to
+	 * share a name with a scheduled event, including Run Now's own
+	 * do_action_ref_array() call, producing a duplicate log entry for every
+	 * manual trigger. Stuck-detection and overdue-alert evaluation still run
+	 * on every page load regardless, since those need to work even when
+	 * WP-Cron itself never fires (DISABLE_WP_CRON).
 	 */
 	public static function register_trackers(): void {
 		$crons = _get_cron_array();
@@ -49,24 +58,33 @@ class CP_Cron_Tracker {
 			return;
 		}
 
+		$is_cron = wp_doing_cron();
+
 		foreach ( $crons as $timestamp => $cron_hooks ) {
 			foreach ( array_keys( $cron_hooks ) as $hook ) {
 				self::check_stuck( $hook );
-				CP_Alerts::evaluate_overdue( $hook, (int) $timestamp );
+				CronPulse_Alerts::evaluate_overdue( $hook, (int) $timestamp );
 
-				if ( isset( self::$tracked[ $hook ] ) ) {
+				if ( ! $is_cron || isset( self::$tracked[ $hook ] ) ) {
 					continue;
 				}
 				self::$tracked[ $hook ] = true;
 
+				// Shared by reference between this pair of closures only, so
+				// concurrent/overlapping runs of the same hook (e.g. two
+				// overlapping WP-Cron spawns) can't clobber each other's
+				// start time via the persistent transient.
+				$start_time = null;
+
 				// Add a high-priority action that fires BEFORE the real handler.
-				add_action( $hook, static function () use ( $hook ) {
-					self::before( $hook );
+				add_action( $hook, static function () use ( $hook, &$start_time ) {
+					$start_time = microtime( true );
+					self::before( $hook, $start_time );
 				}, -9999 );
 
 				// Add a low-priority action that fires AFTER the real handler.
-				add_action( $hook, static function () use ( $hook ) {
-					self::after( $hook );
+				add_action( $hook, static function () use ( $hook, &$start_time ) {
+					self::after( $hook, $start_time );
 				}, 9999 );
 			}
 		}
@@ -78,7 +96,7 @@ class CP_Cron_Tracker {
 	 * until it quietly expires. Flag it as stuck before that happens.
 	 */
 	private static function check_stuck( string $hook ): void {
-		$key   = 'cp_start_' . md5( $hook );
+		$key   = 'cronpulse_start_' . md5( $hook );
 		$start = get_transient( $key );
 
 		if ( false === $start ) {
@@ -97,8 +115,8 @@ class CP_Cron_Tracker {
 	/**
 	 * Called immediately before the cron hook fires.
 	 */
-	public static function before( string $hook ): void {
-		set_transient( 'cp_start_' . md5( $hook ), microtime( true ), 300 );
+	public static function before( string $hook, float $start_time ): void {
+		set_transient( 'cronpulse_start_' . md5( $hook ), $start_time, 300 );
 		self::$in_flight[ $hook ] = true;
 
 		// Registered once per request; catches fatals/timeouts that never reach after().
@@ -111,14 +129,12 @@ class CP_Cron_Tracker {
 	/**
 	 * Called immediately after the cron hook fires.
 	 */
-	public static function after( string $hook ): void {
+	public static function after( string $hook, ?float $start_time ): void {
 		unset( self::$in_flight[ $hook ] );
 
-		$key   = 'cp_start_' . md5( $hook );
-		$start = get_transient( $key );
-		delete_transient( $key );
+		delete_transient( 'cronpulse_start_' . md5( $hook ) );
 
-		$duration = $start ? round( ( microtime( true ) - (float) $start ) * 1000 ) : null; // ms
+		$duration = $start_time ? round( ( microtime( true ) - $start_time ) * 1000 ) : null; // ms
 
 		self::log_execution( $hook, 'success', $duration );
 	}
@@ -138,7 +154,7 @@ class CP_Cron_Tracker {
 		$is_fatal = $error && in_array( $error['type'], $fatal_types, true );
 
 		foreach ( array_keys( self::$in_flight ) as $hook ) {
-			$key   = 'cp_start_' . md5( $hook );
+			$key   = 'cronpulse_start_' . md5( $hook );
 			$start = get_transient( $key );
 			delete_transient( $key );
 
@@ -162,7 +178,7 @@ class CP_Cron_Tracker {
 	 * @param string|null $message  Error detail, only set for 'fatal'
 	 */
 	public static function log_execution( string $hook, string $status, ?int $duration, ?string $message = null ): void {
-		$log = get_option( CP_OPTION_LOG, [] );
+		$log = get_option( CRONPULSE_OPTION_LOG, [] );
 
 		if ( ! is_array( $log ) ) {
 			$log = [];
@@ -176,14 +192,14 @@ class CP_Cron_Tracker {
 			'timestamp' => time(),
 		] );
 
-		$limit = CP_Alerts::get_settings()['log_retention'];
+		$limit = CronPulse_Alerts::get_settings()['log_retention'];
 		if ( count( $log ) > $limit ) {
 			$log = array_slice( $log, 0, $limit );
 		}
 
-		update_option( CP_OPTION_LOG, $log, false );
+		update_option( CRONPULSE_OPTION_LOG, $log, false );
 
-		CP_Alerts::evaluate_failure( $hook, $status );
+		CronPulse_Alerts::evaluate_failure( $hook, $status );
 	}
 
 	/**
@@ -193,7 +209,7 @@ class CP_Cron_Tracker {
 	 * @return array|null
 	 */
 	public static function get_last_run( string $hook ): ?array {
-		$log = get_option( CP_OPTION_LOG, [] );
+		$log = get_option( CRONPULSE_OPTION_LOG, [] );
 
 		if ( ! is_array( $log ) ) {
 			return null;
@@ -214,7 +230,7 @@ class CP_Cron_Tracker {
 	 * @return array
 	 */
 	public static function get_log(): array {
-		$log = get_option( CP_OPTION_LOG, [] );
+		$log = get_option( CRONPULSE_OPTION_LOG, [] );
 		return is_array( $log ) ? $log : [];
 	}
 
@@ -249,6 +265,6 @@ class CP_Cron_Tracker {
 	 * Clear the entire log.
 	 */
 	public static function clear_log(): void {
-		update_option( CP_OPTION_LOG, [], false );
+		update_option( CRONPULSE_OPTION_LOG, [], false );
 	}
 }

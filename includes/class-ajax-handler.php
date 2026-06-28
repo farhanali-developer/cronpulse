@@ -1,28 +1,28 @@
 <?php
 /**
- * CP_Ajax_Handler
+ * CronPulse_Ajax_Handler
  *
  * Handles AJAX requests for:
- *  - cp_run_now     — manually trigger a cron hook
- *  - cp_clear_log   — wipe the execution log
- *  - cp_unschedule  — remove a scheduled event from WP-Cron
- *  - cp_snooze      — acknowledge the current failing/overdue incident for a hook
+ *  - cronpulse_run_now     — manually trigger a cron hook
+ *  - cronpulse_clear_log   — wipe the execution log
+ *  - cronpulse_unschedule  — remove a scheduled event from WP-Cron
+ *  - cronpulse_snooze      — acknowledge the current failing/overdue incident for a hook
  */
 defined( 'ABSPATH' ) || exit;
 
-class CP_Ajax_Handler {
+class CronPulse_Ajax_Handler {
 
 	public static function init(): void {
-		add_action( 'wp_ajax_cp_run_now',    [ __CLASS__, 'handle_run_now' ] );
-		add_action( 'wp_ajax_cp_clear_log',  [ __CLASS__, 'handle_clear_log' ] );
-		add_action( 'wp_ajax_cp_unschedule', [ __CLASS__, 'handle_unschedule' ] );
-		add_action( 'wp_ajax_cp_snooze',     [ __CLASS__, 'handle_snooze' ] );
+		add_action( 'wp_ajax_cronpulse_run_now',    [ __CLASS__, 'handle_run_now' ] );
+		add_action( 'wp_ajax_cronpulse_clear_log',  [ __CLASS__, 'handle_clear_log' ] );
+		add_action( 'wp_ajax_cronpulse_unschedule', [ __CLASS__, 'handle_unschedule' ] );
+		add_action( 'wp_ajax_cronpulse_snooze',     [ __CLASS__, 'handle_snooze' ] );
 	}
 
 	// -------------------------------------------------------------------------
 
 	public static function handle_run_now(): void {
-		check_ajax_referer( 'cp_nonce', 'nonce' );
+		check_ajax_referer( 'cronpulse_nonce', 'nonce' );
 
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_send_json_error( [ 'message' => __( 'Unauthorized.', 'cronpulse' ) ], 403 );
@@ -55,7 +55,7 @@ class CP_Ajax_Handler {
 		do_action_ref_array( $hook, $args );
 		$duration = (int) round( ( microtime( true ) - $start ) * 1000 );
 
-		CP_Cron_Tracker::log_execution( $hook, 'success', $duration );
+		CronPulse_Cron_Tracker::log_execution( $hook, 'success', $duration );
 
 		wp_send_json_success( [
 			'message'  => sprintf(
@@ -71,7 +71,7 @@ class CP_Ajax_Handler {
 	// -------------------------------------------------------------------------
 
 	public static function handle_unschedule(): void {
-		check_ajax_referer( 'cp_nonce', 'nonce' );
+		check_ajax_referer( 'cronpulse_nonce', 'nonce' );
 
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_send_json_error( [ 'message' => __( 'Unauthorized.', 'cronpulse' ) ], 403 );
@@ -116,7 +116,7 @@ class CP_Ajax_Handler {
 	// -------------------------------------------------------------------------
 
 	public static function handle_snooze(): void {
-		check_ajax_referer( 'cp_nonce', 'nonce' );
+		check_ajax_referer( 'cronpulse_nonce', 'nonce' );
 
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_send_json_error( [ 'message' => __( 'Unauthorized.', 'cronpulse' ) ], 403 );
@@ -129,7 +129,7 @@ class CP_Ajax_Handler {
 			return;
 		}
 
-		CP_Alerts::snooze( $hook );
+		CronPulse_Alerts::snooze( $hook );
 
 		wp_send_json_success( [
 			'message' => sprintf(
@@ -143,14 +143,14 @@ class CP_Ajax_Handler {
 	// -------------------------------------------------------------------------
 
 	public static function handle_clear_log(): void {
-		check_ajax_referer( 'cp_nonce', 'nonce' );
+		check_ajax_referer( 'cronpulse_nonce', 'nonce' );
 
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_send_json_error( [ 'message' => __( 'Unauthorized.', 'cronpulse' ) ], 403 );
 			return;
 		}
 
-		CP_Cron_Tracker::clear_log();
+		CronPulse_Cron_Tracker::clear_log();
 		wp_send_json_success( [ 'message' => __( 'Log cleared.', 'cronpulse' ) ] );
 	}
 

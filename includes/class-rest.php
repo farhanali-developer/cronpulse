@@ -1,6 +1,6 @@
 <?php
 /**
- * CP_REST_Controller
+ * CronPulse_REST_Controller
  *
  * Read-only JSON status endpoint, for agencies polling cron health across
  * multiple client sites without SSH/WP-CLI access. Authenticates the same
@@ -9,7 +9,7 @@
  */
 defined( 'ABSPATH' ) || exit;
 
-class CP_REST_Controller {
+class CronPulse_REST_Controller {
 
 	const NAMESPACE_ = 'cronpulse/v1';
 
@@ -34,7 +34,7 @@ class CP_REST_Controller {
 	}
 
 	public static function get_status( WP_REST_Request $request ): WP_REST_Response {
-		$jobs = CP_Admin_Page::get_jobs();
+		$jobs = CronPulse_Admin_Page::get_jobs();
 
 		$filter = $request->get_param( 'status' );
 		if ( $filter ) {
