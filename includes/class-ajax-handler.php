@@ -262,26 +262,32 @@ class CronPulse_Ajax_Handler {
 			return;
 		}
 
-		$test_message = sprintf(
-			/* translators: %s = site URL */
+		$site      = (string) wp_parse_url( home_url(), PHP_URL_HOST );
+		$dashboard = admin_url( 'tools.php?page=cronpulse' );
+
+		$plain = sprintf(
+			/* translators: %s = site domain */
 			__( 'This is a test alert from Cron Pulse on %s.', 'cronpulse' ),
-			home_url()
+			$site
+		);
+		$short = '🟢 ' . $plain;
+
+		$payload = CronPulse_Alerts::build_webhook_payload(
+			'test',
+			'#00a32a',
+			__( 'Cron Pulse test alert', 'cronpulse' ),
+			'',
+			__( 'If you can see this, webhook alerts are configured correctly.', 'cronpulse' ),
+			[ [ 'label' => __( 'Site', 'cronpulse' ), 'value' => $site ] ],
+			$dashboard,
+			$short,
+			$plain
 		);
 
 		$response = wp_remote_post( $webhook, [
 			'timeout' => 10,
 			'headers' => [ 'Content-Type' => 'application/json' ],
-			// 'text' and 'content' make this work as-is against Slack's and
-			// Discord's own webhook formats; both ignore unrecognized keys.
-			'body'    => wp_json_encode( [
-				'plugin'  => 'cronpulse',
-				'hook'    => 'test',
-				'type'    => 'test',
-				'site'    => home_url(),
-				'message' => $test_message,
-				'text'    => $test_message,
-				'content' => $test_message,
-			] ),
+			'body'    => wp_json_encode( $payload ),
 		] );
 
 		if ( is_wp_error( $response ) ) {

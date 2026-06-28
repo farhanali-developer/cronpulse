@@ -343,9 +343,12 @@ class CronPulse_Alerts {
 		$dashboard = admin_url( 'tools.php?page=cronpulse' );
 		$last_run  = CronPulse_Cron_Tracker::get_last_run( $hook );
 
+		// $details drives both the email's row table and the webhook's
+		// Slack/Discord fields — one source of truth instead of building
+		// the same facts twice in two different shapes.
 		if ( 'overdue' === $type ) {
-			$minutes  = (int) $context['minutes'];
-			$overdue  = human_time_diff( time() - ( $minutes * MINUTE_IN_SECONDS ), time() );
+			$minutes = (int) $context['minutes'];
+			$overdue = human_time_diff( time() - ( $minutes * MINUTE_IN_SECONDS ), time() );
 
 			$subject = sprintf( '[Cron Pulse] %s is overdue on %s', $hook, $site );
 			$plain   = sprintf(
@@ -355,44 +358,46 @@ class CronPulse_Alerts {
 				$site,
 				$dashboard
 			);
-
-			$rows  = self::render_email_row( __( 'Overdue for', 'cronpulse' ), $overdue );
-			$rows .= self::render_email_row(
-				__( 'Alert threshold', 'cronpulse' ),
-				sprintf(
-					/* translators: %d = minutes */
-					__( '%d minutes', 'cronpulse' ),
-					self::get_thresholds_for( $hook )['overdue_minutes']
-				)
+			$short = '🟠 ' . sprintf(
+				/* translators: 1: cron hook name, 2: site domain, 3: human-readable overdue duration, e.g. "2 hours" */
+				__( '%1$s is overdue on %2$s — overdue by %3$s', 'cronpulse' ),
+				$hook,
+				$site,
+				$overdue
 			);
+
+			$badge_color = '#996800';
+			$badge_label = __( 'Overdue', 'cronpulse' );
+			$heading     = __( 'Cron job hasn\'t run on schedule', 'cronpulse' );
+			$intro       = sprintf(
+				/* translators: %s = human-readable duration, e.g. "2 hours" */
+				__( 'This hook was due to run over %s ago and still hasn\'t fired.', 'cronpulse' ),
+				$overdue
+			);
+
+			$details = [
+				[ 'label' => __( 'Overdue for', 'cronpulse' ), 'value' => $overdue ],
+				[
+					'label' => __( 'Alert threshold', 'cronpulse' ),
+					'value' => sprintf(
+						/* translators: %d = minutes */
+						__( '%d minutes', 'cronpulse' ),
+						self::get_thresholds_for( $hook )['overdue_minutes']
+					),
+				],
+			];
 			if ( $last_run ) {
-				$rows .= self::render_email_row(
-					__( 'Last execution', 'cronpulse' ),
-					sprintf(
+				$details[] = [
+					'label' => __( 'Last execution', 'cronpulse' ),
+					'value' => sprintf(
 						/* translators: 1: execution status, 2: relative time, e.g. "2 hours ago" */
 						__( '%1$s, %2$s', 'cronpulse' ),
 						ucfirst( $last_run['status'] ),
 						CronPulse_Admin_Page::format_time( (int) $last_run['timestamp'] )
-					)
-				);
+					),
+				];
 			}
-			$rows .= self::render_email_row( __( 'Site', 'cronpulse' ), $site );
-
-			$html = self::render_email_html(
-				__( 'Overdue', 'cronpulse' ),
-				'#996800',
-				__( 'Cron job hasn\'t run on schedule', 'cronpulse' ),
-				$hook,
-				sprintf(
-					/* translators: %s = human-readable duration, e.g. "2 hours" */
-					__( 'This hook was due to run over %s ago and still hasn\'t fired.', 'cronpulse' ),
-					$overdue
-				),
-				$rows,
-				$dashboard,
-				__( 'Open Dashboard', 'cronpulse' ),
-				$site
-			);
+			$details[] = [ 'label' => __( 'Site', 'cronpulse' ), 'value' => $site ];
 		} else {
 			$count     = (int) $context['count'];
 			$status    = (string) $context['status'];
@@ -407,41 +412,60 @@ class CronPulse_Alerts {
 				$site,
 				$dashboard
 			);
-
-			$rows = self::render_email_row(
-				__( 'Consecutive failures', 'cronpulse' ),
-				sprintf(
-					/* translators: 1: number of consecutive failures, 2: configured alert threshold */
-					__( '%1$d (alert threshold: %2$d)', 'cronpulse' ),
-					$count,
-					$threshold
-				)
+			$short = '🔴 ' . sprintf(
+				/* translators: 1: cron hook name, 2: site domain, 3: number of consecutive failures */
+				__( '%1$s is failing on %2$s — %3$d in a row', 'cronpulse' ),
+				$hook,
+				$site,
+				$count
 			);
-			$rows .= self::render_email_row( __( 'Last status', 'cronpulse' ), ucfirst( $status ) );
+
+			$badge_color = '#d63638';
+			$badge_label = __( 'Failing', 'cronpulse' );
+			$heading     = __( 'Cron job is failing', 'cronpulse' );
+			$intro       = sprintf(
+				/* translators: %d = number of consecutive failures */
+				__( 'This hook has now failed %d times in a row.', 'cronpulse' ),
+				$count
+			);
+
+			$details = [
+				[
+					'label' => __( 'Consecutive failures', 'cronpulse' ),
+					'value' => sprintf(
+						/* translators: 1: number of consecutive failures, 2: configured alert threshold */
+						__( '%1$d (alert threshold: %2$d)', 'cronpulse' ),
+						$count,
+						$threshold
+					),
+				],
+				[ 'label' => __( 'Last status', 'cronpulse' ), 'value' => ucfirst( $status ) ],
+			];
 			if ( $last_run && ! empty( $last_run['message'] ) ) {
-				$rows .= self::render_email_row( __( 'Last error', 'cronpulse' ), (string) $last_run['message'], true );
+				$details[] = [ 'label' => __( 'Last error', 'cronpulse' ), 'value' => (string) $last_run['message'], 'code' => true ];
 			}
 			if ( $last_run ) {
-				$rows .= self::render_email_row( __( 'Last attempt', 'cronpulse' ), CronPulse_Admin_Page::format_time( (int) $last_run['timestamp'] ) );
+				$details[] = [ 'label' => __( 'Last attempt', 'cronpulse' ), 'value' => CronPulse_Admin_Page::format_time( (int) $last_run['timestamp'] ) ];
 			}
-			$rows .= self::render_email_row( __( 'Site', 'cronpulse' ), $site );
-
-			$html = self::render_email_html(
-				__( 'Failing', 'cronpulse' ),
-				'#d63638',
-				__( 'Cron job is failing', 'cronpulse' ),
-				$hook,
-				sprintf(
-					/* translators: %d = number of consecutive failures */
-					__( 'This hook has now failed %d times in a row.', 'cronpulse' ),
-					$count
-				),
-				$rows,
-				$dashboard,
-				__( 'Open Dashboard', 'cronpulse' ),
-				$site
-			);
+			$details[] = [ 'label' => __( 'Site', 'cronpulse' ), 'value' => $site ];
 		}
+
+		$rows = '';
+		foreach ( $details as $detail ) {
+			$rows .= self::render_email_row( $detail['label'], $detail['value'], ! empty( $detail['code'] ) );
+		}
+
+		$html = self::render_email_html(
+			$badge_label,
+			$badge_color,
+			$heading,
+			$hook,
+			$intro,
+			$rows,
+			$dashboard,
+			__( 'Open Dashboard', 'cronpulse' ),
+			$site
+		);
 
 		$email = $settings['email'] ?: get_option( 'admin_email' );
 		if ( $email ) {
@@ -449,22 +473,13 @@ class CronPulse_Alerts {
 		}
 
 		if ( ! empty( $settings['webhook'] ) ) {
+			$payload = self::build_webhook_payload( $type, $badge_color, $heading, $hook, $intro, $details, $dashboard, $short, $plain );
+
 			wp_remote_post( $settings['webhook'], [
 				'timeout'  => 5,
 				'blocking' => false,
 				'headers'  => [ 'Content-Type' => 'application/json' ],
-				// 'text' and 'content' are included so the payload works as-is
-				// against Slack's and Discord's own webhook formats (they look
-				// for those exact keys); both just ignore the rest.
-				'body'     => wp_json_encode( [
-					'plugin'  => 'cronpulse',
-					'hook'    => $hook,
-					'type'    => $type,
-					'site'    => home_url(),
-					'message' => $plain,
-					'text'    => $plain,
-					'content' => $plain,
-				] ),
+				'body'     => wp_json_encode( $payload ),
 			] );
 		}
 	}
@@ -541,6 +556,77 @@ class CronPulse_Alerts {
 </table>
 </body>
 </html>';
+	}
+
+	/**
+	 * Build a JSON-ready webhook payload that renders as a colored card in
+	 * both Slack ("attachments") and Discord ("embeds"), on top of the
+	 * original flat fields kept for any other, custom-built endpoint.
+	 *
+	 * @param array<int, array{label: string, value: string, code?: bool}> $details
+	 */
+	public static function build_webhook_payload(
+		string $type,
+		string $color,
+		string $title,
+		string $hook,
+		string $intro,
+		array $details,
+		string $cta_url,
+		string $short_text,
+		string $plain
+	): array {
+		$slack_fields   = [];
+		$discord_fields = [];
+
+		foreach ( $details as $detail ) {
+			$is_code = ! empty( $detail['code'] );
+			// Discord hard-caps embed field values at 1024 characters; a long
+			// stack trace would otherwise make the whole webhook call fail
+			// silently (it's fired with 'blocking' => false).
+			$value = mb_substr( (string) $detail['value'], 0, 950 );
+			$value = $is_code ? "```{$value}```" : $value;
+
+			$slack_fields[]   = [ 'title' => $detail['label'], 'value' => $value, 'short' => ! $is_code ];
+			$discord_fields[] = [ 'name' => $detail['label'], 'value' => $value, 'inline' => ! $is_code ];
+		}
+
+		$card_title = '' !== $hook ? $hook : $title;
+
+		return [
+			'plugin'      => 'cronpulse',
+			'hook'        => $hook,
+			'type'        => $type,
+			'site'        => home_url(),
+			'message'     => $plain,
+			'text'        => $short_text,
+			'content'     => $short_text,
+			// Legacy Slack "attachments" — still the simplest way to get a
+			// colored card with structured fields from an incoming webhook.
+			'attachments' => [
+				[
+					'fallback'   => $short_text,
+					'color'      => $color,
+					'title'      => $card_title,
+					'title_link' => $cta_url,
+					'text'       => $intro,
+					'fields'     => $slack_fields,
+					'footer'     => 'Cron Pulse',
+					'ts'         => time(),
+				],
+			],
+			'embeds'      => [
+				[
+					'title'       => $card_title,
+					'url'         => $cta_url,
+					'description' => $intro,
+					'color'       => hexdec( ltrim( $color, '#' ) ),
+					'fields'      => $discord_fields,
+					'footer'      => [ 'text' => 'Cron Pulse' ],
+					'timestamp'   => gmdate( 'c' ),
+				],
+			],
+		];
 	}
 
 	/**
