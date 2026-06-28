@@ -314,8 +314,6 @@ class CronPulse_Admin_Page {
 
 			<!-- Email Log tab -->
 			<div id="cp-email-log" class="cp-tab-panel" style="display:none;">
-				<div class="cp-logs-layout">
-				<div class="cp-logs-main">
 				<div class="cp-email-log-section">
 				<?php if ( empty( $email_log ) ) : ?>
 					<p class="cp-empty"><?php esc_html_e( 'No emails sent yet. Alert emails (and test emails) will show up here.', 'cronpulse' ); ?></p>
@@ -369,14 +367,20 @@ class CronPulse_Admin_Page {
 				</table>
 				<?php endif; ?>
 				</div><!-- .cp-email-log-section -->
-				</div><!-- .cp-logs-main -->
 
-				<div class="cp-logs-aside">
+				<!--
+					Stays a child of #cp-email-log so it shows/hides with the
+					tab via the existing JS — but is position:fixed (see
+					admin.css), so visually it breaks out of the table's flex/
+					block flow entirely and pins to the viewport's right edge
+					as its own panel, rather than sharing space with the table.
+				-->
 				<div class="cp-debug-log-section">
 				<h2 class="cp-debug-log-heading"><?php esc_html_e( 'Email Debug Log', 'cronpulse' ); ?></h2>
 				<?php
 				$debug_log_contents = CronPulse_Debug_Log::get_contents();
 				$debug_log_path     = CronPulse_Debug_Log::get_path();
+				$file_readable      = CronPulse_Debug_Log::file_is_readable();
 				?>
 				<p class="description">
 					<?php
@@ -396,6 +400,16 @@ class CronPulse_Admin_Page {
 						);
 						?>
 					</div>
+				<?php elseif ( false === $file_readable ) : ?>
+					<div class="cp-notice-inline cp-warn">
+						<span class="dashicons dashicons-warning"></span>
+						<?php
+						echo esc_html(
+							/* translators: %s = full file path */
+							sprintf( __( 'The log file exists but this request can\'t read it — %s. Often means it was created by a different system user (e.g. a cron job run via SSH/WP-CLI) than the one serving this page. Check the file\'s owner and permissions.', 'cronpulse' ), $debug_log_path )
+						);
+						?>
+					</div>
 				<?php endif; ?>
 				<?php if ( empty( $debug_log_contents ) ) : ?>
 					<p class="cp-empty"><?php esc_html_e( 'No debug output yet. Use "Send Test Email" on the Settings tab to generate some.', 'cronpulse' ); ?></p>
@@ -406,8 +420,6 @@ class CronPulse_Admin_Page {
 					<pre class="cp-debug-log"><?php echo esc_html( $debug_log_contents ); ?></pre>
 				<?php endif; ?>
 				</div><!-- .cp-debug-log-section -->
-				</div><!-- .cp-logs-aside -->
-				</div><!-- .cp-logs-layout -->
 			</div>
 
 			<!-- Alerts tab -->

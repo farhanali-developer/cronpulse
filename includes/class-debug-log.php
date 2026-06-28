@@ -163,16 +163,37 @@ class CronPulse_Debug_Log {
 	 */
 	public static function get_contents( int $max_lines = 300 ): string {
 		$path = self::get_path();
-		if ( ! file_exists( $path ) ) {
+
+		if ( ! file_exists( $path ) || ! is_readable( $path ) ) {
 			return '';
 		}
 
-		$lines = file( $path, FILE_IGNORE_NEW_LINES );
-		if ( ! $lines ) {
+		clearstatcache( true, $path );
+		$contents = file_get_contents( $path );
+
+		if ( false === $contents || '' === trim( $contents ) ) {
 			return '';
 		}
+
+		$lines = explode( "\n", rtrim( $contents, "\n" ) );
 
 		return implode( "\n", array_slice( $lines, -$max_lines ) );
+	}
+
+	/**
+	 * Distinguishes "no log yet" (null — nothing to diagnose) from "the file
+	 * exists but this process can't read it" (false — usually a permissions
+	 * mismatch, e.g. the file was created by a cron job running as a
+	 * different system user than the one serving this web request).
+	 */
+	public static function file_is_readable(): ?bool {
+		$path = self::get_path();
+
+		if ( ! file_exists( $path ) ) {
+			return null;
+		}
+
+		return is_readable( $path );
 	}
 
 	/**

@@ -342,32 +342,12 @@
 	pointer-events: none;
 }
 
-/* Two-column layouts: Settings (main form + help sidebar) and the
-   Email Log tab (log table + debug log) share the same flex/sticky/
-   responsive behavior, just with different column proportions. ---- */
-.cp-settings-layout,
-.cp-logs-layout {
+/* Settings layout: main form + help sidebar ----------------- */
+.cp-settings-layout {
 	display: flex;
 	gap: 24px;
 	align-items: flex-start;
 }
-.cp-settings-sidebar,
-.cp-logs-aside {
-	position: sticky;
-	top: 40px;
-}
-@media (max-width: 900px) {
-	.cp-settings-layout,
-	.cp-logs-layout {
-		flex-direction: column;
-	}
-	.cp-settings-sidebar,
-	.cp-logs-aside {
-		position: static;
-		max-width: 100%;
-	}
-}
-
 .cp-settings-main {
 	flex: 1 1 65%;
 	min-width: 0;
@@ -375,15 +355,17 @@
 .cp-settings-sidebar {
 	flex: 1 1 320px;
 	max-width: 360px;
+	position: sticky;
+	top: 40px;
 }
-
-.cp-logs-main {
-	flex: 1 1 55%;
-	min-width: 0;
-}
-.cp-logs-aside {
-	flex: 1 1 45%;
-	min-width: 0;
+@media (max-width: 900px) {
+	.cp-settings-layout {
+		flex-direction: column;
+	}
+	.cp-settings-sidebar {
+		position: static;
+		max-width: 100%;
+	}
 }
 
 /* Help box (e.g. webhook setup instructions) --------------- */
@@ -437,7 +419,34 @@
 	margin: 0 0 8px;
 }
 
-/* Email Debug Log -------------------------------------------- */
+/* Email Debug Log — a standalone panel, deliberately NOT sharing flex
+   space with the table above it. Pinned to the viewport's right edge
+   regardless of where the table scrolls to; falls back to a normal
+   stacked block on narrower screens where there's no room for both. */
+.cp-debug-log-section {
+	position: fixed;
+	top: 140px;
+	right: 24px;
+	width: 420px;
+	max-height: calc(100vh - 170px);
+	overflow-y: auto;
+	background: var(--cp-surface);
+	border: 1px solid var(--cp-border);
+	border-radius: var(--cp-radius);
+	box-shadow: 0 4px 18px rgba(0,0,0,.18);
+	padding: 18px 20px;
+	z-index: 20;
+}
+@media (max-width: 1400px) {
+	.cp-debug-log-section {
+		position: static;
+		width: auto;
+		max-height: none;
+		overflow-y: visible;
+		margin-top: 24px;
+		box-shadow: var(--cp-shadow);
+	}
+}
 .cp-debug-log-heading {
 	margin-top: 0;
 	margin-bottom: 6px;
@@ -449,8 +458,6 @@
 	padding: 14px 16px;
 	font-size: 0.78rem;
 	line-height: 1.6;
-	max-height: 420px;
-	overflow-y: auto;
 	white-space: pre-wrap;
 	word-break: break-word;
 }
