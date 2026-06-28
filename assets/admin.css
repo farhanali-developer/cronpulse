@@ -419,32 +419,34 @@
 	margin: 0 0 8px;
 }
 
-/* Email Debug Log — a standalone panel, deliberately NOT sharing flex
-   space with the table above it. Pinned to the viewport's right edge
-   regardless of where the table scrolls to; falls back to a normal
-   stacked block on narrower screens where there's no room for both. */
+/* Email Log tab: table and debug log as top-aligned flex siblings,
+   each in its own box, side by side in the same row. */
+.cp-email-log-row {
+	display: flex;
+	gap: 24px;
+	align-items: flex-start;
+}
+.cp-email-log-section {
+	flex: 1 1 55%;
+	min-width: 0;
+}
 .cp-debug-log-section {
-	position: fixed;
-	top: 140px;
-	right: 24px;
-	width: 420px;
-	max-height: calc(100vh - 170px);
-	overflow-y: auto;
+	flex: 1 1 45%;
+	min-width: 0;
 	background: var(--cp-surface);
 	border: 1px solid var(--cp-border);
 	border-radius: var(--cp-radius);
-	box-shadow: 0 4px 18px rgba(0,0,0,.18);
+	box-shadow: var(--cp-shadow);
 	padding: 18px 20px;
-	z-index: 20;
 }
-@media (max-width: 1400px) {
+@media (max-width: 1100px) {
+	.cp-email-log-row {
+		flex-direction: column;
+	}
+	.cp-email-log-section,
 	.cp-debug-log-section {
-		position: static;
-		width: auto;
-		max-height: none;
-		overflow-y: visible;
-		margin-top: 24px;
-		box-shadow: var(--cp-shadow);
+		flex: 1 1 auto;
+		width: 100%;
 	}
 }
 .cp-debug-log-heading {
@@ -460,4 +462,28 @@
 	line-height: 1.6;
 	white-space: pre-wrap;
 	word-break: break-word;
+	max-height: 480px;
+	overflow-y: auto;
+}
+
+/* Debug log diagnostics (collapsible ground-truth panel) -------- */
+.cp-debug-diagnostics {
+	margin-bottom: 12px;
+	font-size: 0.8rem;
+	color: var(--cp-muted);
+}
+.cp-debug-diagnostics summary {
+	cursor: pointer;
+	font-weight: 500;
+	color: #1d2327;
+}
+.cp-debug-diagnostics ul {
+	margin: 8px 0 8px 18px;
+	padding: 0;
+}
+.cp-debug-diagnostics li {
+	margin-bottom: 3px;
+}
+.cp-debug-diagnostics .description {
+	margin: 6px 0 0;
 }

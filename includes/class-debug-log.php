@@ -44,6 +44,13 @@ class CronPulse_Debug_Log {
 	private static function ensure_protected_dir(): bool {
 		$dir = self::get_dir();
 
+		// Cleared up front, not just after writes — a persistent PHP-FPM
+		// worker that checked this exact path before the directory/file
+		// ever existed can keep returning a stale "doesn't exist" from its
+		// own process-local stat cache otherwise, regardless of what any
+		// OTHER worker has since written to disk.
+		clearstatcache( true, $dir );
+
 		if ( ! file_exists( $dir ) && ! wp_mkdir_p( $dir ) ) {
 			return false;
 		}
@@ -164,11 +171,12 @@ class CronPulse_Debug_Log {
 	public static function get_contents( int $max_lines = 300 ): string {
 		$path = self::get_path();
 
+		clearstatcache( true, $path );
+
 		if ( ! file_exists( $path ) || ! is_readable( $path ) ) {
 			return '';
 		}
 
-		clearstatcache( true, $path );
 		$contents = file_get_contents( $path );
 
 		if ( false === $contents || '' === trim( $contents ) ) {
@@ -189,11 +197,37 @@ class CronPulse_Debug_Log {
 	public static function file_is_readable(): ?bool {
 		$path = self::get_path();
 
+		clearstatcache( true, $path );
+
 		if ( ! file_exists( $path ) ) {
 			return null;
 		}
 
 		return is_readable( $path );
+	}
+
+	/**
+	 * Raw ground truth for troubleshooting — what this exact PHP process
+	 * sees for the log file right now, after forcing a fresh stat lookup.
+	 * Shown directly in the admin UI so a mismatch against what's visible
+	 * via FTP/file manager is immediately obvious rather than guessed at.
+	 *
+	 * @return array{path: string, exists: bool, readable: ?bool, size: ?int, modified: ?string}
+	 */
+	public static function get_diagnostics(): array {
+		$path = self::get_path();
+
+		clearstatcache( true, $path );
+
+		$exists = file_exists( $path );
+
+		return [
+			'path'     => $path,
+			'exists'   => $exists,
+			'readable' => $exists ? is_readable( $path ) : null,
+			'size'     => $exists ? filesize( $path ) : null,
+			'modified' => $exists ? gmdate( 'Y-m-d H:i:s', filemtime( $path ) ) . ' UTC' : null,
+		];
 	}
 
 	/**
@@ -203,6 +237,8 @@ class CronPulse_Debug_Log {
 	 */
 	public static function clear(): bool {
 		$path = self::get_path();
+
+		clearstatcache( true, $path );
 
 		if ( ! file_exists( $path ) ) {
 			return true;

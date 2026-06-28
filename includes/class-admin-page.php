@@ -314,6 +314,16 @@ class CronPulse_Admin_Page {
 
 			<!-- Email Log tab -->
 			<div id="cp-email-log" class="cp-tab-panel" style="display:none;">
+				<!--
+					Plain flex row, top-aligned — the table and the debug log
+					are two independent, separately-boxed containers sitting
+					side by side in the same row, not one nested inside the
+					other's box. The display:none/block toggle for tabs stays
+					on #cp-email-log itself; this inner wrapper is always
+					display:flex via CSS, so there's no ambiguity about
+					whether jQuery's show() restores "flex" correctly.
+				-->
+				<div class="cp-email-log-row">
 				<div class="cp-email-log-section">
 				<?php if ( empty( $email_log ) ) : ?>
 					<p class="cp-empty"><?php esc_html_e( 'No emails sent yet. Alert emails (and test emails) will show up here.', 'cronpulse' ); ?></p>
@@ -368,20 +378,52 @@ class CronPulse_Admin_Page {
 				<?php endif; ?>
 				</div><!-- .cp-email-log-section -->
 
-				<!--
-					Stays a child of #cp-email-log so it shows/hides with the
-					tab via the existing JS — but is position:fixed (see
-					admin.css), so visually it breaks out of the table's flex/
-					block flow entirely and pins to the viewport's right edge
-					as its own panel, rather than sharing space with the table.
-				-->
 				<div class="cp-debug-log-section">
 				<h2 class="cp-debug-log-heading"><?php esc_html_e( 'Email Debug Log', 'cronpulse' ); ?></h2>
 				<?php
 				$debug_log_contents = CronPulse_Debug_Log::get_contents();
 				$debug_log_path     = CronPulse_Debug_Log::get_path();
 				$file_readable      = CronPulse_Debug_Log::file_is_readable();
+				$diagnostics        = CronPulse_Debug_Log::get_diagnostics();
 				?>
+				<details class="cp-debug-diagnostics">
+					<summary><?php esc_html_e( 'Diagnostics (if this looks empty but you know there\'s content)', 'cronpulse' ); ?></summary>
+					<ul>
+						<li>
+							<strong><?php esc_html_e( 'Path:', 'cronpulse' ); ?></strong>
+							<?php echo esc_html( $diagnostics['path'] ); ?>
+						</li>
+						<li>
+							<strong><?php esc_html_e( 'Exists:', 'cronpulse' ); ?></strong>
+							<?php echo $diagnostics['exists'] ? esc_html__( 'yes', 'cronpulse' ) : esc_html__( 'no', 'cronpulse' ); ?>
+						</li>
+						<li>
+							<strong><?php esc_html_e( 'Readable:', 'cronpulse' ); ?></strong>
+							<?php
+							if ( null === $diagnostics['readable'] ) {
+								echo '—';
+							} else {
+								echo $diagnostics['readable'] ? esc_html__( 'yes', 'cronpulse' ) : esc_html__( 'no', 'cronpulse' );
+							}
+							?>
+						</li>
+						<li>
+							<strong><?php esc_html_e( 'Size:', 'cronpulse' ); ?></strong>
+							<?php
+							if ( null === $diagnostics['size'] ) {
+								echo '—';
+							} else {
+								echo esc_html( number_format_i18n( $diagnostics['size'] ) . ' bytes' );
+							}
+							?>
+						</li>
+						<li>
+							<strong><?php esc_html_e( 'Last modified:', 'cronpulse' ); ?></strong>
+							<?php echo null === $diagnostics['modified'] ? '—' : esc_html( $diagnostics['modified'] ); ?>
+						</li>
+					</ul>
+					<p class="description"><?php esc_html_e( 'If "Exists" and "Size" here don\'t match what you see via FTP/file manager, reload this page — that would point to a caching issue rather than the file itself.', 'cronpulse' ); ?></p>
+				</details>
 				<p class="description">
 					<?php
 					echo esc_html(
@@ -420,6 +462,7 @@ class CronPulse_Admin_Page {
 					<pre class="cp-debug-log"><?php echo esc_html( $debug_log_contents ); ?></pre>
 				<?php endif; ?>
 				</div><!-- .cp-debug-log-section -->
+				</div><!-- .cp-email-log-row -->
 			</div>
 
 			<!-- Alerts tab -->
