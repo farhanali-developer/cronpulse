@@ -314,6 +314,8 @@ class CronPulse_Admin_Page {
 
 			<!-- Email Log tab -->
 			<div id="cp-email-log" class="cp-tab-panel" style="display:none;">
+				<div class="cp-logs-layout">
+				<div class="cp-logs-main">
 				<div class="cp-email-log-section">
 				<?php if ( empty( $email_log ) ) : ?>
 					<p class="cp-empty"><?php esc_html_e( 'No emails sent yet. Alert emails (and test emails) will show up here.', 'cronpulse' ); ?></p>
@@ -367,7 +369,9 @@ class CronPulse_Admin_Page {
 				</table>
 				<?php endif; ?>
 				</div><!-- .cp-email-log-section -->
+				</div><!-- .cp-logs-main -->
 
+				<div class="cp-logs-aside">
 				<div class="cp-debug-log-section">
 				<h2 class="cp-debug-log-heading"><?php esc_html_e( 'Email Debug Log', 'cronpulse' ); ?></h2>
 				<?php
@@ -391,6 +395,8 @@ class CronPulse_Admin_Page {
 					<pre class="cp-debug-log"><?php echo esc_html( $debug_log_contents ); ?></pre>
 				<?php endif; ?>
 				</div><!-- .cp-debug-log-section -->
+				</div><!-- .cp-logs-aside -->
+				</div><!-- .cp-logs-layout -->
 			</div>
 
 			<!-- Alerts tab -->

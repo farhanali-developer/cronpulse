@@ -342,12 +342,32 @@
 	pointer-events: none;
 }
 
-/* Settings layout: main form + help sidebar ---------------- */
-.cp-settings-layout {
+/* Two-column layouts: Settings (main form + help sidebar) and the
+   Email Log tab (log table + debug log) share the same flex/sticky/
+   responsive behavior, just with different column proportions. ---- */
+.cp-settings-layout,
+.cp-logs-layout {
 	display: flex;
 	gap: 24px;
 	align-items: flex-start;
 }
+.cp-settings-sidebar,
+.cp-logs-aside {
+	position: sticky;
+	top: 40px;
+}
+@media (max-width: 900px) {
+	.cp-settings-layout,
+	.cp-logs-layout {
+		flex-direction: column;
+	}
+	.cp-settings-sidebar,
+	.cp-logs-aside {
+		position: static;
+		max-width: 100%;
+	}
+}
+
 .cp-settings-main {
 	flex: 1 1 65%;
 	min-width: 0;
@@ -355,17 +375,15 @@
 .cp-settings-sidebar {
 	flex: 1 1 320px;
 	max-width: 360px;
-	position: sticky;
-	top: 40px;
 }
-@media (max-width: 900px) {
-	.cp-settings-layout {
-		flex-direction: column;
-	}
-	.cp-settings-sidebar {
-		position: static;
-		max-width: 100%;
-	}
+
+.cp-logs-main {
+	flex: 1 1 55%;
+	min-width: 0;
+}
+.cp-logs-aside {
+	flex: 1 1 45%;
+	min-width: 0;
 }
 
 /* Help box (e.g. webhook setup instructions) --------------- */
@@ -420,10 +438,8 @@
 }
 
 /* Email Debug Log -------------------------------------------- */
-.cp-debug-log-section {
-	margin-top: 28px;
-}
 .cp-debug-log-heading {
+	margin-top: 0;
 	margin-bottom: 6px;
 }
 .cp-debug-log {

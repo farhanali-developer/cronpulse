@@ -140,10 +140,21 @@ class CronPulse_Debug_Log {
 		return implode( "\n", array_slice( $lines, -$max_lines ) );
 	}
 
-	public static function clear(): void {
+	/**
+	 * @return bool True once the file is confirmed empty, false if the write
+	 *              failed (e.g. a permissions issue) — callers should not
+	 *              report success without checking this.
+	 */
+	public static function clear(): bool {
 		$path = self::get_path();
-		if ( file_exists( $path ) ) {
-			file_put_contents( $path, '' );
+
+		if ( ! file_exists( $path ) ) {
+			return true;
 		}
+
+		file_put_contents( $path, '' );
+
+		clearstatcache( true, $path );
+		return 0 === filesize( $path );
 	}
 }

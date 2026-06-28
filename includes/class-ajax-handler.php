@@ -299,8 +299,11 @@ class CronPulse_Ajax_Handler {
 			return;
 		}
 
-		CronPulse_Debug_Log::clear();
-		wp_send_json_success( [ 'message' => __( 'Debug log cleared.', 'cronpulse' ) ] );
+		if ( CronPulse_Debug_Log::clear() ) {
+			wp_send_json_success( [ 'message' => __( 'Debug log cleared.', 'cronpulse' ) ] );
+		} else {
+			wp_send_json_error( [ 'message' => __( 'Could not clear the debug log file — check file permissions on wp-content/uploads/cronpulse-logs/.', 'cronpulse' ) ] );
+		}
 	}
 
 	// -------------------------------------------------------------------------
