@@ -90,7 +90,7 @@ class CronPulse_Debug_Log {
 		}
 
 		$path  = self::get_path();
-		$entry = '[' . current_time( 'mysql' ) . '] ' . $line . "\n";
+		$entry = '[' . current_time( 'mysql' ) . '] ' . self::ensure_utf8( $line ) . "\n";
 
 		if ( false === file_put_contents( $path, $entry, FILE_APPEND | LOCK_EX ) ) {
 			return false;
@@ -111,6 +111,24 @@ class CronPulse_Debug_Log {
 	 */
 	public static function is_writable(): bool {
 		return self::ensure_protected_dir();
+	}
+
+	/**
+	 * Raw SMTP server responses are protocol bytes, not guaranteed valid
+	 * UTF-8 (a banner or error string can carry a stray 8-bit byte). Left
+	 * as-is, esc_html() silently returns '' for the *entire* string the
+	 * moment it contains even one invalid byte — wp_check_invalid_utf8()
+	 * under the hood — so the whole log appears empty in the admin UI
+	 * despite the file having content. Re-interpreting as ISO-8859-1 maps
+	 * every possible byte to a valid codepoint, so the output is always
+	 * well-formed UTF-8.
+	 */
+	private static function ensure_utf8( string $str ): string {
+		if ( '' === $str || 1 === @preg_match( '/^./us', $str ) ) {
+			return $str;
+		}
+
+		return mb_convert_encoding( $str, 'UTF-8', 'ISO-8859-1' );
 	}
 
 	private static function trim_to_recent(): void {
@@ -182,6 +200,12 @@ class CronPulse_Debug_Log {
 		if ( false === $contents || '' === trim( $contents ) ) {
 			return '';
 		}
+
+		// Self-heals any pre-existing invalid-UTF-8 bytes (e.g. written before
+		// this sanitization existed) so display doesn't depend on the file
+		// being cleared and starting fresh — see ensure_utf8() for why this
+		// matters.
+		$contents = self::ensure_utf8( $contents );
 
 		$lines = explode( "\n", rtrim( $contents, "\n" ) );
 
