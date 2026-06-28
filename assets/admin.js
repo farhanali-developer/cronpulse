@@ -358,12 +358,41 @@
 		} )
 		.done( function ( res ) {
 			if ( res.success ) {
-				$( '#cp-email-log .cp-table' ).remove();
-				$( '#cp-email-log .cp-log-toolbar' ).remove();
-				$( '#cp-email-log' ).append(
+				const $section = $( '.cp-email-log-section' );
+				$section.find( '.cp-table' ).remove();
+				$section.find( '.cp-log-toolbar' ).remove();
+				$section.append(
 					'<p class="cp-empty">' + 'No emails sent yet. Alert emails (and test emails) will show up here.' + '</p>'
 				);
 				$( '.cp-tab[data-tab="email-log"] .cp-badge' ).remove();
+				flash( res.data.message, 'success' );
+			}
+		} )
+		.fail( function () {
+			flash( cronpulseData.i18n.error, 'error' );
+		} );
+	} );
+
+	// -------------------------------------------------------------------------
+	// Clear debug log
+	// -------------------------------------------------------------------------
+	$( document ).on( 'click', '.cp-clear-debug-log', function () {
+		if ( ! window.confirm( cronpulseData.i18n.confirmClear ) ) {
+			return;
+		}
+
+		$.post( cronpulseData.ajaxUrl, {
+			action : 'cronpulse_clear_debug_log',
+			nonce  : cronpulseData.nonce,
+		} )
+		.done( function ( res ) {
+			if ( res.success ) {
+				const $section = $( '.cp-debug-log-section' );
+				$section.find( '.cp-debug-log' ).remove();
+				$section.find( '.cp-log-toolbar' ).remove();
+				$section.append(
+					'<p class="cp-empty">' + 'No debug output yet. Use "Send Test Email" on the Settings tab to generate some.' + '</p>'
+				);
 				flash( res.data.message, 'success' );
 			}
 		} )

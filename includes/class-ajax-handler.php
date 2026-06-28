@@ -10,6 +10,7 @@
  *  - cronpulse_test_email     — send a test alert email using the saved settings
  *  - cronpulse_test_webhook   — send a test alert payload to the saved webhook URL
  *  - cronpulse_clear_email_log — wipe the email log
+ *  - cronpulse_clear_debug_log — wipe the SMTP debug log
  */
 defined( 'ABSPATH' ) || exit;
 
@@ -23,6 +24,7 @@ class CronPulse_Ajax_Handler {
 		add_action( 'wp_ajax_cronpulse_test_email',      [ __CLASS__, 'handle_test_email' ] );
 		add_action( 'wp_ajax_cronpulse_test_webhook',    [ __CLASS__, 'handle_test_webhook' ] );
 		add_action( 'wp_ajax_cronpulse_clear_email_log', [ __CLASS__, 'handle_clear_email_log' ] );
+		add_action( 'wp_ajax_cronpulse_clear_debug_log', [ __CLASS__, 'handle_clear_debug_log' ] );
 	}
 
 	// -------------------------------------------------------------------------
@@ -156,39 +158,55 @@ class CronPulse_Ajax_Handler {
 			return;
 		}
 
-		$settings = CronPulse_Alerts::get_settings();
-		$to       = $settings['email'] ?: get_option( 'admin_email' );
+		// A bad SMTP host/port/cert can throw in places wp_mail() itself
+		// doesn't catch — without this, that breaks the JSON response and
+		// the browser just shows a generic "request failed" message instead
+		// of the real reason. Logged detail is in the Email Debug Log either way.
+		try {
+			$settings = CronPulse_Alerts::get_settings();
+			$to       = $settings['email'] ?: get_option( 'admin_email' );
 
-		$sent = CronPulse_Alerts::send_and_log(
-			$to,
-			'[Cron Pulse] Test email',
-			"This is a test email from Cron Pulse to confirm your email settings are working.\n\nSite: " . home_url(),
-			'test'
-		);
+			$sent = CronPulse_Alerts::send_and_log(
+				$to,
+				'[Cron Pulse] Test email',
+				"This is a test email from Cron Pulse to confirm your email settings are working.\n\nSite: " . home_url(),
+				'test'
+			);
 
-		if ( $sent ) {
-			wp_send_json_success( [
+			if ( $sent ) {
+				wp_send_json_success( [
+					'message' => sprintf(
+						/* translators: %s = recipient email address */
+						__( 'Test email sent to %s. Check the Email Log tab to confirm.', 'cronpulse' ),
+						esc_html( $to )
+					),
+				] );
+				return;
+			}
+
+			$log        = CronPulse_Alerts::get_email_log();
+			$last_error = $log[0]['error'] ?? '';
+
+			wp_send_json_error( [
+				'message' => $last_error
+					? sprintf(
+						/* translators: %s = error message from the mail server */
+						__( 'Failed to send: %s', 'cronpulse' ),
+						esc_html( $last_error )
+					)
+					: __( 'wp_mail() returned false with no further detail. Check the Email Debug Log.', 'cronpulse' ),
+			] );
+		} catch ( \Throwable $e ) {
+			CronPulse_Debug_Log::write( 'EXCEPTION during test email: ' . $e->getMessage() );
+
+			wp_send_json_error( [
 				'message' => sprintf(
-					/* translators: %s = recipient email address */
-					__( 'Test email sent to %s. Check the Email Log tab to confirm.', 'cronpulse' ),
-					esc_html( $to )
+					/* translators: %s = exception message */
+					__( 'Unexpected error: %s. See the Email Debug Log for detail.', 'cronpulse' ),
+					esc_html( $e->getMessage() )
 				),
 			] );
-			return;
 		}
-
-		$log         = CronPulse_Alerts::get_email_log();
-		$last_error  = $log[0]['error'] ?? '';
-
-		wp_send_json_error( [
-			'message' => $last_error
-				? sprintf(
-					/* translators: %s = error message from the mail server */
-					__( 'Failed to send: %s', 'cronpulse' ),
-					esc_html( $last_error )
-				)
-				: __( 'wp_mail() returned false with no further detail. Check your SMTP settings.', 'cronpulse' ),
-		] );
 	}
 
 	// -------------------------------------------------------------------------
@@ -269,6 +287,20 @@ class CronPulse_Ajax_Handler {
 
 		CronPulse_Alerts::clear_email_log();
 		wp_send_json_success( [ 'message' => __( 'Email log cleared.', 'cronpulse' ) ] );
+	}
+
+	// -------------------------------------------------------------------------
+
+	public static function handle_clear_debug_log(): void {
+		check_ajax_referer( 'cronpulse_nonce', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( [ 'message' => __( 'Unauthorized.', 'cronpulse' ) ], 403 );
+			return;
+		}
+
+		CronPulse_Debug_Log::clear();
+		wp_send_json_success( [ 'message' => __( 'Debug log cleared.', 'cronpulse' ) ] );
 	}
 
 	// -------------------------------------------------------------------------

@@ -314,6 +314,7 @@ class CronPulse_Admin_Page {
 
 			<!-- Email Log tab -->
 			<div id="cp-email-log" class="cp-tab-panel" style="display:none;">
+				<div class="cp-email-log-section">
 				<?php if ( empty( $email_log ) ) : ?>
 					<p class="cp-empty"><?php esc_html_e( 'No emails sent yet. Alert emails (and test emails) will show up here.', 'cronpulse' ); ?></p>
 				<?php else : ?>
@@ -365,6 +366,31 @@ class CronPulse_Admin_Page {
 					</tbody>
 				</table>
 				<?php endif; ?>
+				</div><!-- .cp-email-log-section -->
+
+				<div class="cp-debug-log-section">
+				<h2 class="cp-debug-log-heading"><?php esc_html_e( 'Email Debug Log', 'cronpulse' ); ?></h2>
+				<?php
+				$debug_log_contents = CronPulse_Debug_Log::get_contents();
+				$debug_log_path     = CronPulse_Debug_Log::get_path();
+				?>
+				<p class="description">
+					<?php
+					echo esc_html(
+						/* translators: %s = full server file path to the debug log */
+						sprintf( __( 'The raw SMTP conversation for each send attempt — connection, TLS, auth, server responses. Credentials are never written here. File: %s', 'cronpulse' ), $debug_log_path )
+					);
+					?>
+				</p>
+				<?php if ( empty( $debug_log_contents ) ) : ?>
+					<p class="cp-empty"><?php esc_html_e( 'No debug output yet. Use "Send Test Email" on the Settings tab to generate some.', 'cronpulse' ); ?></p>
+				<?php else : ?>
+					<div class="cp-log-toolbar">
+						<button class="button cp-clear-debug-log"><?php esc_html_e( 'Clear Debug Log', 'cronpulse' ); ?></button>
+					</div>
+					<pre class="cp-debug-log"><?php echo esc_html( $debug_log_contents ); ?></pre>
+				<?php endif; ?>
+				</div><!-- .cp-debug-log-section -->
 			</div>
 
 			<!-- Alerts tab -->

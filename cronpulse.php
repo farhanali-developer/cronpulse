@@ -24,6 +24,7 @@ define( 'CRONPULSE_OPTION_ALERTS',    'cronpulse_alert_settings' ); // also hold
 define( 'CRONPULSE_OPTION_STREAKS',   'cronpulse_alert_streaks' );
 define( 'CRONPULSE_OPTION_EMAIL_LOG', 'cronpulse_email_log' );
 
+require_once CRONPULSE_PLUGIN_DIR . 'includes/class-debug-log.php';
 require_once CRONPULSE_PLUGIN_DIR . 'includes/class-cron-tracker.php';
 require_once CRONPULSE_PLUGIN_DIR . 'includes/class-admin-page.php';
 require_once CRONPULSE_PLUGIN_DIR . 'includes/class-ajax-handler.php';

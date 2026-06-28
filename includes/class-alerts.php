@@ -179,6 +179,20 @@ class CronPulse_Alerts {
 		$phpmailer->Username = $settings['smtp_username'];
 		$phpmailer->Password = $settings['smtp_password'];
 
+		// PHPMailer's own default is 300s, comfortably longer than most
+		// hosts' PHP max_execution_time — a wrong host/port would hang the
+		// request into an uncatchable timeout fatal instead of failing
+		// cleanly. 15s is enough for a real connection attempt to succeed.
+		$phpmailer->Timeout = 15;
+
+		// Captures the actual SMTP conversation (connection, TLS, AUTH,
+		// server responses) to the debug log — far more useful than a
+		// generic failure when something like the host or port is wrong.
+		$phpmailer->SMTPDebug   = 2; // client/server messages; not raw socket data
+		$phpmailer->Debugoutput = static function ( $str ) {
+			CronPulse_Debug_Log::log_smtp_line( $str );
+		};
+
 		if ( 'none' === $settings['smtp_encryption'] ) {
 			$phpmailer->SMTPSecure  = '';
 			$phpmailer->SMTPAutoTLS = false;
@@ -387,6 +401,16 @@ class CronPulse_Alerts {
 	 * error on failure, captured via wp_mail_failed) in the email log.
 	 */
 	public static function send_and_log( string $to, string $subject, string $body, string $type = 'alert' ): bool {
+		$settings = self::get_settings();
+
+		CronPulse_Debug_Log::write( sprintf(
+			'Sending "%s" to %s (type: %s, transport: %s)',
+			$subject,
+			$to,
+			$type,
+			! empty( $settings['smtp_enabled'] ) ? 'SMTP (' . $settings['smtp_host'] . ':' . $settings['smtp_port'] . ')' : 'default mail()'
+		) );
+
 		$error   = null;
 		$capture = static function ( $wp_error ) use ( &$error ) {
 			$error = $wp_error;
@@ -395,6 +419,12 @@ class CronPulse_Alerts {
 		add_action( 'wp_mail_failed', $capture );
 		$sent = wp_mail( $to, $subject, $body );
 		remove_action( 'wp_mail_failed', $capture );
+
+		CronPulse_Debug_Log::write( sprintf(
+			'Result: %s%s',
+			$sent ? 'SENT' : 'FAILED',
+			$error ? ' — ' . $error->get_error_message() : ''
+		) );
 
 		self::log_email( $to, $subject, $type, $sent ? 'sent' : 'failed', $error ? $error->get_error_message() : null );
 

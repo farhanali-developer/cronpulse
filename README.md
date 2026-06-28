@@ -62,6 +62,8 @@ The **Settings** tab lets you enable email and/or webhook notifications:
 
 After saving, use **Send Test Email** / **Send Test Webhook** to confirm delivery actually works, and check the **Email Log** tab for a record of every email sent (recipient, subject, status, and the underlying error on failure).
 
+If the error message alone isn't enough, the same tab has an **Email Debug Log** — the actual SMTP conversation (connection, TLS, AUTH, server responses) for each attempt, written to `wp-content/uploads/cronpulse-logs/email-debug.log` (blocked from direct web access; login credentials are redacted before anything is written regardless).
+
 ### WP-CLI
 
 ```bash

@@ -32,6 +32,7 @@ WordPress developers fly blind with WP-Cron. The core tools give you no visibili
 * **Email and webhook alerts** — get notified after N consecutive failed runs or when a job has been overdue too long, with optional per-job thresholds and a one-click snooze for incidents you already know about. Webhook payloads work directly with Slack and Discord, no relay needed — setup instructions are built into the Settings tab
 * **Built-in SMTP settings** — route alert emails through your own mail provider instead of the server's default mail() function, no separate SMTP plugin required
 * **Email Log** — see every alert/test email Cron Pulse has sent, with delivery status and the underlying error if one failed
+* **Email Debug Log** — the raw SMTP conversation (connection, TLS, auth, server responses) for diagnosing delivery problems beyond a generic failure message — credentials are never written to it
 * **Send Test Email / Send Test Webhook** — confirm your notification settings actually work before you need them
 * **WP-CLI support** — `wp cronpulse status` for scripting health checks across sites
 * **REST API** — `GET /wp-json/cronpulse/v1/status` for remote dashboards, authenticated like any other WP REST route
@@ -100,6 +101,10 @@ Many hosts either don't have PHP's mail() function configured at all, or send th
 = Where is the email log stored, and what's in it? =
 
 In the WordPress options table under the key `cronpulse_email_log`, capped at the last 50 entries. Each entry has the recipient, subject, type (alert/test), delivery status, and the underlying error message if it failed. Cleared on uninstall, or anytime via the Clear Email Log button.
+
+= "Failed to send" isn't telling me enough — how do I dig deeper? =
+
+Check the Email Debug Log on the Email Log tab. When SMTP is enabled it captures the actual SMTP conversation — connection attempt, TLS handshake, AUTH exchange, and the mail server's own response — for every send. It's a separate file under `wp-content/uploads/cronpulse-logs/email-debug.log` (protected from direct web access), not the options table, since a raw protocol transcript doesn't belong in the database. Login credentials are redacted before anything is written, regardless.
 
 == Changelog ==
 
