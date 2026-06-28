@@ -166,6 +166,17 @@ class CronPulse_Ajax_Handler {
 			$settings = CronPulse_Alerts::get_settings();
 			$to       = $settings['email'] ?: get_option( 'admin_email' );
 
+			// Checked once and appended to whichever message goes out below —
+			// otherwise the debug log just stays silently empty with no clue
+			// that it's a permissions problem rather than nothing happening.
+			$log_warning = CronPulse_Debug_Log::is_writable()
+				? ''
+				: ' ' . sprintf(
+					/* translators: %s = full server file path */
+					__( '(Note: the debug log directory is not writable — %s — so no debug detail was recorded for this attempt.)', 'cronpulse' ),
+					esc_html( CronPulse_Debug_Log::get_dir() )
+				);
+
 			$sent = CronPulse_Alerts::send_and_log(
 				$to,
 				'[Cron Pulse] Test email',
@@ -179,7 +190,7 @@ class CronPulse_Ajax_Handler {
 						/* translators: %s = recipient email address */
 						__( 'Test email sent to %s. Check the Email Log tab to confirm.', 'cronpulse' ),
 						esc_html( $to )
-					),
+					) . $log_warning,
 				] );
 				return;
 			}
@@ -188,13 +199,13 @@ class CronPulse_Ajax_Handler {
 			$last_error = $log[0]['error'] ?? '';
 
 			wp_send_json_error( [
-				'message' => $last_error
+				'message' => ( $last_error
 					? sprintf(
 						/* translators: %s = error message from the mail server */
 						__( 'Failed to send: %s', 'cronpulse' ),
 						esc_html( $last_error )
 					)
-					: __( 'wp_mail() returned false with no further detail. Check the Email Debug Log.', 'cronpulse' ),
+					: __( 'wp_mail() returned false with no further detail. Check the Email Debug Log.', 'cronpulse' ) ) . $log_warning,
 			] );
 		} catch ( \Throwable $e ) {
 			CronPulse_Debug_Log::write( 'EXCEPTION during test email: ' . $e->getMessage() );

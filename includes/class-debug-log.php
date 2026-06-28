@@ -36,11 +36,24 @@ class CronPulse_Debug_Log {
 		return self::get_dir() . '/email-debug.log';
 	}
 
-	private static function ensure_protected_dir(): void {
+	/**
+	 * @return bool False if the directory doesn't exist and couldn't be
+	 *              created — write() bails early in that case rather than
+	 *              silently doing nothing.
+	 */
+	private static function ensure_protected_dir(): bool {
 		$dir = self::get_dir();
 
-		if ( ! file_exists( $dir ) ) {
-			wp_mkdir_p( $dir );
+		if ( ! file_exists( $dir ) && ! wp_mkdir_p( $dir ) ) {
+			return false;
+		}
+
+		// Checked up front so a read-only directory bails out cleanly here
+		// instead of every file_put_contents() below throwing a PHP warning —
+		// which, if display_errors is on, can leak into and break a JSON
+		// AJAX response the exact same way the original bug report did.
+		if ( ! is_writable( $dir ) ) {
+			return false;
 		}
 
 		$htaccess = $dir . '/.htaccess';
@@ -55,20 +68,42 @@ class CronPulse_Debug_Log {
 		if ( ! file_exists( $index ) ) {
 			file_put_contents( $index, "<?php\n// Silence is golden.\n" );
 		}
+
+		return true;
 	}
 
-	public static function write( string $line ): void {
-		self::ensure_protected_dir();
+	/**
+	 * @return bool Whether the line was actually written — a permissions
+	 *              issue on the uploads directory would otherwise fail
+	 *              silently and every call site would assume it worked.
+	 */
+	public static function write( string $line ): bool {
+		if ( ! self::ensure_protected_dir() ) {
+			return false;
+		}
 
 		$path  = self::get_path();
 		$entry = '[' . current_time( 'mysql' ) . '] ' . $line . "\n";
 
-		file_put_contents( $path, $entry, FILE_APPEND | LOCK_EX );
+		if ( false === file_put_contents( $path, $entry, FILE_APPEND | LOCK_EX ) ) {
+			return false;
+		}
 
 		clearstatcache( true, $path );
 		if ( file_exists( $path ) && filesize( $path ) > self::MAX_BYTES ) {
 			self::trim_to_recent();
 		}
+
+		return true;
+	}
+
+	/**
+	 * Whether the log directory exists (or can be created) and is writable —
+	 * lets callers warn the user instead of just showing a perpetually empty
+	 * log with no explanation.
+	 */
+	public static function is_writable(): bool {
+		return self::ensure_protected_dir();
 	}
 
 	private static function trim_to_recent(): void {

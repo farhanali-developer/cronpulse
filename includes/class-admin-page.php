@@ -386,6 +386,17 @@ class CronPulse_Admin_Page {
 					);
 					?>
 				</p>
+				<?php if ( ! CronPulse_Debug_Log::is_writable() ) : ?>
+					<div class="cp-notice-inline cp-warn">
+						<span class="dashicons dashicons-warning"></span>
+						<?php
+						echo esc_html(
+							/* translators: %s = directory path */
+							sprintf( __( 'This directory is not writable — %s — so nothing can be recorded here until that\'s fixed.', 'cronpulse' ), CronPulse_Debug_Log::get_dir() )
+						);
+						?>
+					</div>
+				<?php endif; ?>
 				<?php if ( empty( $debug_log_contents ) ) : ?>
 					<p class="cp-empty"><?php esc_html_e( 'No debug output yet. Use "Send Test Email" on the Settings tab to generate some.', 'cronpulse' ); ?></p>
 				<?php else : ?>
