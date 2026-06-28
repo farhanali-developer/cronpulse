@@ -19,6 +19,9 @@ WordPress developers fly blind with WP-Cron — the core tools give you no visib
 - **Hook and status filters** — search by hook name or narrow the table to Overdue/Failing/Healthy/Never Run
 - **DISABLE_WP_CRON warning** — alerts you when automatic cron execution is disabled
 - **Email and webhook alerts** — notify after N consecutive failed runs or extended overdue time, with optional per-job thresholds and one-click Snooze
+- **Built-in SMTP settings** — route alert emails through your own mail provider instead of the server's default mail(), no separate SMTP plugin
+- **Email Log** — see every alert/test email sent, with delivery status and the underlying error if one failed
+- **Send Test Email / Send Test Webhook** — confirm notification settings work before you actually need them
 - **WP-CLI support** — `wp cronpulse status` for scripting health checks across sites
 - **REST API** — `GET /wp-json/cronpulse/v1/status` for remote dashboards
 - Zero external dependencies — pure PHP and vanilla jQuery
@@ -54,7 +57,10 @@ The **Settings** tab lets you enable email and/or webhook notifications:
 - **Overdue threshold** — alert once a job has been overdue for longer than N minutes
 - **Per-job overrides** — set tighter or looser thresholds for specific hooks (e.g. a payment-processing hook vs. a daily cleanup job)
 - **Webhook** — receives a JSON POST for every alert; works with Slack, Discord, or your own endpoint
+- **SMTP** — host, port, encryption, username/password, and From address/name, applied via WordPress's `phpmailer_init` hook — no third-party SMTP plugin involved
 - **Snooze** — acknowledge a current incident from the dashboard without disabling alerts globally; resumes normally once that hook recovers and fails again
+
+After saving, use **Send Test Email** / **Send Test Webhook** to confirm delivery actually works, and check the **Email Log** tab for a record of every email sent (recipient, subject, status, and the underlying error on failure).
 
 ### WP-CLI
 
@@ -91,6 +97,9 @@ Cron Pulse tracks jobs registered through the standard WordPress `wp_schedule_ev
 
 **What does Snooze do, exactly?**
 It marks the current failing/overdue incident as acknowledged so no further alert fires for it. Alerts remain enabled globally — the moment that hook recovers and later fails (or becomes overdue) again, alerting resumes for the new incident.
+
+**Why would I need the SMTP settings?**
+Many hosts don't have PHP's `mail()` configured at all, or send through it in a way that gets flagged as spam (no SPF/DKIM alignment, generic From address). SMTP routes through your own authenticated mail provider instead — Gmail, your host's mail server, or a transactional email provider's SMTP endpoint.
 
 ## License
 

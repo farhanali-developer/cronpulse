@@ -3,7 +3,7 @@
  * Plugin Name: Cron Pulse
  * Plugin URI:  https://wordpress.org/plugins/cronpulse/
  * Description: A visual dashboard to monitor, debug, and manually trigger WordPress cron jobs. See schedules, last run times, execution duration, and pass/fail status at a glance.
- * Version:     1.3.1
+ * Version:     1.4.0
  * Author:      Farhan Ali
  * Author URI:  https://farhanali.me
  * License:     GPL-2.0-or-later
@@ -15,13 +15,14 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CRONPULSE_VERSION',        '1.3.1' );
-define( 'CRONPULSE_PLUGIN_DIR',     plugin_dir_path( __FILE__ ) );
-define( 'CRONPULSE_PLUGIN_URL',     plugin_dir_url( __FILE__ ) );
-define( 'CRONPULSE_OPTION_LOG',     'cronpulse_execution_log' );
-define( 'CRONPULSE_LOG_LIMIT',      200 ); // default log retention; overridable via the Settings tab
-define( 'CRONPULSE_OPTION_ALERTS',  'cronpulse_alert_settings' ); // also holds general settings, e.g. log retention
-define( 'CRONPULSE_OPTION_STREAKS', 'cronpulse_alert_streaks' );
+define( 'CRONPULSE_VERSION',          '1.4.0' );
+define( 'CRONPULSE_PLUGIN_DIR',       plugin_dir_path( __FILE__ ) );
+define( 'CRONPULSE_PLUGIN_URL',       plugin_dir_url( __FILE__ ) );
+define( 'CRONPULSE_OPTION_LOG',       'cronpulse_execution_log' );
+define( 'CRONPULSE_LOG_LIMIT',        200 ); // default log retention; overridable via the Settings tab
+define( 'CRONPULSE_OPTION_ALERTS',    'cronpulse_alert_settings' ); // also holds general settings, e.g. log retention
+define( 'CRONPULSE_OPTION_STREAKS',   'cronpulse_alert_streaks' );
+define( 'CRONPULSE_OPTION_EMAIL_LOG', 'cronpulse_email_log' );
 
 require_once CRONPULSE_PLUGIN_DIR . 'includes/class-cron-tracker.php';
 require_once CRONPULSE_PLUGIN_DIR . 'includes/class-admin-page.php';
@@ -68,4 +69,5 @@ function cronpulse_uninstall() {
 	delete_option( CRONPULSE_OPTION_LOG );
 	delete_option( CRONPULSE_OPTION_ALERTS );
 	delete_option( CRONPULSE_OPTION_STREAKS );
+	delete_option( CRONPULSE_OPTION_EMAIL_LOG );
 }

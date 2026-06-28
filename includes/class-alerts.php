@@ -14,6 +14,7 @@ class CronPulse_Alerts {
 
 	public static function init(): void {
 		add_action( 'admin_init', [ __CLASS__, 'maybe_save_settings' ] );
+		add_action( 'phpmailer_init', [ __CLASS__, 'configure_smtp' ] );
 	}
 
 	// -------------------------------------------------------------------------
@@ -29,6 +30,14 @@ class CronPulse_Alerts {
 			'webhook'           => '',
 			'log_retention'     => CRONPULSE_LOG_LIMIT,
 			'per_job'           => [],
+			'smtp_enabled'      => false,
+			'smtp_host'         => '',
+			'smtp_port'         => 587,
+			'smtp_encryption'   => 'tls', // 'none' | 'ssl' | 'tls'
+			'smtp_username'     => '',
+			'smtp_password'     => '',
+			'smtp_from_email'   => '',
+			'smtp_from_name'    => '',
 		];
 
 		$settings = get_option( CRONPULSE_OPTION_ALERTS, [] );
@@ -61,7 +70,20 @@ class CronPulse_Alerts {
 			wp_die( esc_html__( 'Unauthorized.', 'cronpulse' ) );
 		}
 
-		$email = sanitize_email( wp_unslash( $_POST['cronpulse_alert_email'] ?? '' ) );
+		$email     = sanitize_email( wp_unslash( $_POST['cronpulse_alert_email'] ?? '' ) );
+		$from_email = sanitize_email( wp_unslash( $_POST['cronpulse_smtp_from_email'] ?? '' ) );
+
+		// Password field is left blank in the form on every page load (see
+		// render_settings_tab()) so it never round-trips through HTML source.
+		// An empty submission means "unchanged", not "clear it".
+		$existing_password = self::get_settings()['smtp_password'];
+		$submitted_password = wp_unslash( $_POST['cronpulse_smtp_password'] ?? '' );
+		$password            = '' === $submitted_password ? $existing_password : sanitize_text_field( $submitted_password );
+
+		$encryption = sanitize_key( wp_unslash( $_POST['cronpulse_smtp_encryption'] ?? 'tls' ) );
+		if ( ! in_array( $encryption, [ 'none', 'ssl', 'tls' ], true ) ) {
+			$encryption = 'tls';
+		}
 
 		update_option( CRONPULSE_OPTION_ALERTS, [
 			'enabled'           => ! empty( $_POST['cronpulse_alert_enabled'] ),
@@ -71,6 +93,14 @@ class CronPulse_Alerts {
 			'webhook'           => esc_url_raw( wp_unslash( $_POST['cronpulse_alert_webhook'] ?? '' ) ),
 			'log_retention'     => min( 5000, max( 10, absint( $_POST['cronpulse_log_retention'] ?? CRONPULSE_LOG_LIMIT ) ) ),
 			'per_job'           => self::parse_overrides_from_post(),
+			'smtp_enabled'      => ! empty( $_POST['cronpulse_smtp_enabled'] ),
+			'smtp_host'         => sanitize_text_field( wp_unslash( $_POST['cronpulse_smtp_host'] ?? '' ) ),
+			'smtp_port'         => max( 1, min( 65535, absint( $_POST['cronpulse_smtp_port'] ?? 587 ) ) ),
+			'smtp_encryption'   => $encryption,
+			'smtp_username'     => sanitize_text_field( wp_unslash( $_POST['cronpulse_smtp_username'] ?? '' ) ),
+			'smtp_password'     => $password,
+			'smtp_from_email'   => is_email( $from_email ) ? $from_email : '',
+			'smtp_from_name'    => sanitize_text_field( wp_unslash( $_POST['cronpulse_smtp_from_name'] ?? '' ) ),
 		], false );
 
 		$redirect = add_query_arg( 'updated', '1', admin_url( 'tools.php?page=cronpulse' ) ) . '#cp-alerts';
@@ -116,6 +146,39 @@ class CronPulse_Alerts {
 
 		return $per_job;
 		// phpcs:enable WordPress.Security.NonceVerification.Missing
+	}
+
+	/**
+	 * Routes wp_mail() through user-supplied SMTP credentials instead of the
+	 * server's default PHP mail()/sendmail — no third-party plugin involved,
+	 * just configuring the PHPMailer instance WordPress already bundles.
+	 *
+	 * @param PHPMailer $phpmailer Passed by reference by the phpmailer_init action.
+	 */
+	public static function configure_smtp( $phpmailer ): void {
+		$settings = self::get_settings();
+
+		if ( empty( $settings['smtp_enabled'] ) || empty( $settings['smtp_host'] ) ) {
+			return;
+		}
+
+		$phpmailer->isSMTP();
+		$phpmailer->Host     = $settings['smtp_host'];
+		$phpmailer->Port     = $settings['smtp_port'];
+		$phpmailer->SMTPAuth = ! empty( $settings['smtp_username'] );
+		$phpmailer->Username = $settings['smtp_username'];
+		$phpmailer->Password = $settings['smtp_password'];
+
+		if ( 'none' === $settings['smtp_encryption'] ) {
+			$phpmailer->SMTPSecure  = '';
+			$phpmailer->SMTPAutoTLS = false;
+		} else {
+			$phpmailer->SMTPSecure = $settings['smtp_encryption']; // 'ssl' or 'tls'
+		}
+
+		if ( ! empty( $settings['smtp_from_email'] ) ) {
+			$phpmailer->setFrom( $settings['smtp_from_email'], $settings['smtp_from_name'] ?: get_bloginfo( 'name' ) );
+		}
 	}
 
 	// -------------------------------------------------------------------------
@@ -248,7 +311,7 @@ class CronPulse_Alerts {
 
 		$email = $settings['email'] ?: get_option( 'admin_email' );
 		if ( $email ) {
-			wp_mail( $email, $subject, $body );
+			self::send_and_log( $email, $subject, $body, $type );
 		}
 
 		if ( ! empty( $settings['webhook'] ) ) {
@@ -265,6 +328,67 @@ class CronPulse_Alerts {
 				] ),
 			] );
 		}
+	}
+
+	/**
+	 * Number of email log entries to keep. Not user-configurable — email
+	 * volume is naturally much lower than cron-execution volume, so a fixed
+	 * cap is enough; no need to duplicate the log_retention setting for it.
+	 */
+	private const EMAIL_LOG_LIMIT = 50;
+
+	/**
+	 * Send via wp_mail() and record the outcome (including the real PHPMailer
+	 * error on failure, captured via wp_mail_failed) in the email log.
+	 */
+	public static function send_and_log( string $to, string $subject, string $body, string $type = 'alert' ): bool {
+		$error   = null;
+		$capture = static function ( $wp_error ) use ( &$error ) {
+			$error = $wp_error;
+		};
+
+		add_action( 'wp_mail_failed', $capture );
+		$sent = wp_mail( $to, $subject, $body );
+		remove_action( 'wp_mail_failed', $capture );
+
+		self::log_email( $to, $subject, $type, $sent ? 'sent' : 'failed', $error ? $error->get_error_message() : null );
+
+		return $sent;
+	}
+
+	private static function log_email( string $to, string $subject, string $type, string $status, ?string $error = null ): void {
+		$log = get_option( CRONPULSE_OPTION_EMAIL_LOG, [] );
+
+		if ( ! is_array( $log ) ) {
+			$log = [];
+		}
+
+		array_unshift( $log, [
+			'to'        => $to,
+			'subject'   => $subject,
+			'type'      => $type,
+			'status'    => $status,
+			'error'     => $error,
+			'timestamp' => time(),
+		] );
+
+		if ( count( $log ) > self::EMAIL_LOG_LIMIT ) {
+			$log = array_slice( $log, 0, self::EMAIL_LOG_LIMIT );
+		}
+
+		update_option( CRONPULSE_OPTION_EMAIL_LOG, $log, false );
+	}
+
+	/**
+	 * Return all email log entries (newest first).
+	 */
+	public static function get_email_log(): array {
+		$log = get_option( CRONPULSE_OPTION_EMAIL_LOG, [] );
+		return is_array( $log ) ? $log : [];
+	}
+
+	public static function clear_email_log(): void {
+		update_option( CRONPULSE_OPTION_EMAIL_LOG, [], false );
 	}
 
 	// -------------------------------------------------------------------------
@@ -375,7 +499,94 @@ class CronPulse_Alerts {
 					</th>
 					<td>
 						<input type="url" id="cronpulse-alert-webhook" name="cronpulse_alert_webhook" value="<?php echo esc_attr( $settings['webhook'] ); ?>" class="regular-text" placeholder="https://" />
-						<p class="description"><?php esc_html_e( 'Optional. Receives a JSON POST for every alert (Slack, Discord, or your own endpoint).', 'cronpulse' ); ?></p>
+						<button type="button" class="button cp-test-webhook"><?php esc_html_e( 'Send Test Webhook', 'cronpulse' ); ?></button>
+						<p class="description"><?php esc_html_e( 'Optional. Receives a JSON POST for every alert (Slack, Discord, or your own endpoint). Save settings first, then use the button to test the saved URL.', 'cronpulse' ); ?></p>
+					</td>
+				</tr>
+			</table>
+
+			<h2><?php esc_html_e( 'Email Delivery (SMTP)', 'cronpulse' ); ?></h2>
+			<p class="description"><?php esc_html_e( 'Without this, alert emails go through the server\'s default mail() function, which many hosts either block or send unreliably. Configuring SMTP here routes through your own mail provider — no separate SMTP plugin needed.', 'cronpulse' ); ?></p>
+			<table class="form-table" role="presentation">
+				<tr>
+					<th scope="row">
+						<label for="cronpulse-smtp-enabled"><?php esc_html_e( 'Use SMTP', 'cronpulse' ); ?></label>
+					</th>
+					<td>
+						<label>
+							<input type="checkbox" id="cronpulse-smtp-enabled" name="cronpulse_smtp_enabled" value="1" <?php checked( $settings['smtp_enabled'] ); ?> />
+							<?php esc_html_e( 'Send Cron Pulse emails through the SMTP server below instead of the default mail() function', 'cronpulse' ); ?>
+						</label>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row">
+						<label for="cronpulse-smtp-host"><?php esc_html_e( 'SMTP Host', 'cronpulse' ); ?></label>
+					</th>
+					<td>
+						<input type="text" id="cronpulse-smtp-host" name="cronpulse_smtp_host" value="<?php echo esc_attr( $settings['smtp_host'] ); ?>" class="regular-text" placeholder="smtp.example.com" />
+					</td>
+				</tr>
+				<tr>
+					<th scope="row">
+						<label for="cronpulse-smtp-port"><?php esc_html_e( 'SMTP Port', 'cronpulse' ); ?></label>
+					</th>
+					<td>
+						<input type="number" min="1" max="65535" id="cronpulse-smtp-port" name="cronpulse_smtp_port" value="<?php echo esc_attr( $settings['smtp_port'] ); ?>" class="small-text" />
+					</td>
+				</tr>
+				<tr>
+					<th scope="row">
+						<label for="cronpulse-smtp-encryption"><?php esc_html_e( 'Encryption', 'cronpulse' ); ?></label>
+					</th>
+					<td>
+						<select id="cronpulse-smtp-encryption" name="cronpulse_smtp_encryption">
+							<option value="tls" <?php selected( $settings['smtp_encryption'], 'tls' ); ?>>TLS</option>
+							<option value="ssl" <?php selected( $settings['smtp_encryption'], 'ssl' ); ?>>SSL</option>
+							<option value="none" <?php selected( $settings['smtp_encryption'], 'none' ); ?>><?php esc_html_e( 'None', 'cronpulse' ); ?></option>
+						</select>
+						<p class="description"><?php esc_html_e( 'TLS on port 587 is the most common modern setup.', 'cronpulse' ); ?></p>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row">
+						<label for="cronpulse-smtp-username"><?php esc_html_e( 'SMTP Username', 'cronpulse' ); ?></label>
+					</th>
+					<td>
+						<input type="text" id="cronpulse-smtp-username" name="cronpulse_smtp_username" value="<?php echo esc_attr( $settings['smtp_username'] ); ?>" class="regular-text" autocomplete="off" />
+					</td>
+				</tr>
+				<tr>
+					<th scope="row">
+						<label for="cronpulse-smtp-password"><?php esc_html_e( 'SMTP Password', 'cronpulse' ); ?></label>
+					</th>
+					<td>
+						<input type="password" id="cronpulse-smtp-password" name="cronpulse_smtp_password" value="" class="regular-text" autocomplete="new-password" placeholder="<?php echo $settings['smtp_password'] ? esc_attr__( '•••••••• (leave blank to keep)', 'cronpulse' ) : ''; ?>" />
+						<p class="description"><?php esc_html_e( 'Left blank on every page load for security. Leave it blank when saving to keep the existing password.', 'cronpulse' ); ?></p>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row">
+						<label for="cronpulse-smtp-from-email"><?php esc_html_e( 'From Email', 'cronpulse' ); ?></label>
+					</th>
+					<td>
+						<input type="email" id="cronpulse-smtp-from-email" name="cronpulse_smtp_from_email" value="<?php echo esc_attr( $settings['smtp_from_email'] ); ?>" class="regular-text" placeholder="<?php echo esc_attr( get_option( 'admin_email' ) ); ?>" />
+						<p class="description"><?php esc_html_e( 'Optional. Many SMTP providers require this to match an address they\'ve verified.', 'cronpulse' ); ?></p>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row">
+						<label for="cronpulse-smtp-from-name"><?php esc_html_e( 'From Name', 'cronpulse' ); ?></label>
+					</th>
+					<td>
+						<input type="text" id="cronpulse-smtp-from-name" name="cronpulse_smtp_from_name" value="<?php echo esc_attr( $settings['smtp_from_name'] ); ?>" class="regular-text" placeholder="<?php echo esc_attr( get_bloginfo( 'name' ) ); ?>" />
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><?php esc_html_e( 'Test', 'cronpulse' ); ?></th>
+					<td>
+						<button type="button" class="button cp-test-email"><?php esc_html_e( 'Send Test Email', 'cronpulse' ); ?></button>
+						<p class="description"><?php esc_html_e( 'Save settings first, then use this to confirm delivery actually works. Sent to the notification email above (or the site admin email).', 'cronpulse' ); ?></p>
 					</td>
 				</tr>
 			</table>

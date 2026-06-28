@@ -3,20 +3,26 @@
  * CronPulse_Ajax_Handler
  *
  * Handles AJAX requests for:
- *  - cronpulse_run_now     — manually trigger a cron hook
- *  - cronpulse_clear_log   — wipe the execution log
- *  - cronpulse_unschedule  — remove a scheduled event from WP-Cron
- *  - cronpulse_snooze      — acknowledge the current failing/overdue incident for a hook
+ *  - cronpulse_run_now        — manually trigger a cron hook
+ *  - cronpulse_clear_log      — wipe the execution log
+ *  - cronpulse_unschedule     — remove a scheduled event from WP-Cron
+ *  - cronpulse_snooze         — acknowledge the current failing/overdue incident for a hook
+ *  - cronpulse_test_email     — send a test alert email using the saved settings
+ *  - cronpulse_test_webhook   — send a test alert payload to the saved webhook URL
+ *  - cronpulse_clear_email_log — wipe the email log
  */
 defined( 'ABSPATH' ) || exit;
 
 class CronPulse_Ajax_Handler {
 
 	public static function init(): void {
-		add_action( 'wp_ajax_cronpulse_run_now',    [ __CLASS__, 'handle_run_now' ] );
-		add_action( 'wp_ajax_cronpulse_clear_log',  [ __CLASS__, 'handle_clear_log' ] );
-		add_action( 'wp_ajax_cronpulse_unschedule', [ __CLASS__, 'handle_unschedule' ] );
-		add_action( 'wp_ajax_cronpulse_snooze',     [ __CLASS__, 'handle_snooze' ] );
+		add_action( 'wp_ajax_cronpulse_run_now',         [ __CLASS__, 'handle_run_now' ] );
+		add_action( 'wp_ajax_cronpulse_clear_log',       [ __CLASS__, 'handle_clear_log' ] );
+		add_action( 'wp_ajax_cronpulse_unschedule',      [ __CLASS__, 'handle_unschedule' ] );
+		add_action( 'wp_ajax_cronpulse_snooze',          [ __CLASS__, 'handle_snooze' ] );
+		add_action( 'wp_ajax_cronpulse_test_email',      [ __CLASS__, 'handle_test_email' ] );
+		add_action( 'wp_ajax_cronpulse_test_webhook',    [ __CLASS__, 'handle_test_webhook' ] );
+		add_action( 'wp_ajax_cronpulse_clear_email_log', [ __CLASS__, 'handle_clear_email_log' ] );
 	}
 
 	// -------------------------------------------------------------------------
@@ -138,6 +144,125 @@ class CronPulse_Ajax_Handler {
 				esc_html( $hook )
 			),
 		] );
+	}
+
+	// -------------------------------------------------------------------------
+
+	public static function handle_test_email(): void {
+		check_ajax_referer( 'cronpulse_nonce', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( [ 'message' => __( 'Unauthorized.', 'cronpulse' ) ], 403 );
+			return;
+		}
+
+		$settings = CronPulse_Alerts::get_settings();
+		$to       = $settings['email'] ?: get_option( 'admin_email' );
+
+		$sent = CronPulse_Alerts::send_and_log(
+			$to,
+			'[Cron Pulse] Test email',
+			"This is a test email from Cron Pulse to confirm your email settings are working.\n\nSite: " . home_url(),
+			'test'
+		);
+
+		if ( $sent ) {
+			wp_send_json_success( [
+				'message' => sprintf(
+					/* translators: %s = recipient email address */
+					__( 'Test email sent to %s. Check the Email Log tab to confirm.', 'cronpulse' ),
+					esc_html( $to )
+				),
+			] );
+			return;
+		}
+
+		$log         = CronPulse_Alerts::get_email_log();
+		$last_error  = $log[0]['error'] ?? '';
+
+		wp_send_json_error( [
+			'message' => $last_error
+				? sprintf(
+					/* translators: %s = error message from the mail server */
+					__( 'Failed to send: %s', 'cronpulse' ),
+					esc_html( $last_error )
+				)
+				: __( 'wp_mail() returned false with no further detail. Check your SMTP settings.', 'cronpulse' ),
+		] );
+	}
+
+	// -------------------------------------------------------------------------
+
+	public static function handle_test_webhook(): void {
+		check_ajax_referer( 'cronpulse_nonce', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( [ 'message' => __( 'Unauthorized.', 'cronpulse' ) ], 403 );
+			return;
+		}
+
+		$settings = CronPulse_Alerts::get_settings();
+		$webhook  = $settings['webhook'];
+
+		if ( empty( $webhook ) ) {
+			wp_send_json_error( [ 'message' => __( 'No webhook URL is saved yet — save settings first.', 'cronpulse' ) ] );
+			return;
+		}
+
+		$response = wp_remote_post( $webhook, [
+			'timeout' => 10,
+			'headers' => [ 'Content-Type' => 'application/json' ],
+			'body'    => wp_json_encode( [
+				'plugin'  => 'cronpulse',
+				'hook'    => 'test',
+				'type'    => 'test',
+				'site'    => home_url(),
+				'message' => sprintf(
+					/* translators: %s = site URL */
+					__( 'This is a test alert from Cron Pulse on %s.', 'cronpulse' ),
+					home_url()
+				),
+			] ),
+		] );
+
+		if ( is_wp_error( $response ) ) {
+			wp_send_json_error( [
+				'message' => sprintf(
+					/* translators: %s = error message */
+					__( 'Request failed: %s', 'cronpulse' ),
+					esc_html( $response->get_error_message() )
+				),
+			] );
+			return;
+		}
+
+		$code = wp_remote_retrieve_response_code( $response );
+
+		if ( $code >= 200 && $code < 300 ) {
+			wp_send_json_success( [
+				/* translators: %d = HTTP status code */
+				'message' => sprintf( __( 'Webhook responded with HTTP %d.', 'cronpulse' ), $code ),
+			] );
+		} else {
+			wp_send_json_error( [
+				/* translators: %d = HTTP status code */
+				'message' => sprintf( __( 'Webhook responded with HTTP %d — check the endpoint.', 'cronpulse' ), $code ),
+			] );
+		}
+	}
+
+	// -------------------------------------------------------------------------
+
+	public static function handle_clear_email_log(): void {
+		check_ajax_referer( 'cronpulse_nonce', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( [ 'message' => __( 'Unauthorized.', 'cronpulse' ) ], 403 );
+			return;
+		}
+
+		CronPulse_Alerts::clear_email_log();
+		wp_send_json_success( [ 'message' => __( 'Email log cleared.', 'cronpulse' ) ] );
 	}
 
 	// -------------------------------------------------------------------------

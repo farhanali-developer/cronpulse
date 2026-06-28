@@ -3,7 +3,7 @@ Contributors:      farhanalidev
 Tags:              cron, cron jobs, wp-cron, developer tools, debugging
 Requires at least: 5.8
 Tested up to:      7.0
-Stable tag:        1.3.1
+Stable tag:        1.4.0
 Requires PHP:      7.4
 License:           GPL-2.0-or-later
 License URI:       https://www.gnu.org/licenses/gpl-2.0.html
@@ -30,6 +30,9 @@ WordPress developers fly blind with WP-Cron. The core tools give you no visibili
 * **Hook and status filters** — search by hook name or narrow the table to just Overdue/Failing/Healthy/Never Run
 * **DISABLE_WP_CRON warning** — alerts you when automatic cron execution is disabled
 * **Email and webhook alerts** — get notified after N consecutive failed runs or when a job has been overdue too long, with optional per-job thresholds and a one-click snooze for incidents you already know about
+* **Built-in SMTP settings** — route alert emails through your own mail provider instead of the server's default mail() function, no separate SMTP plugin required
+* **Email Log** — see every alert/test email Cron Pulse has sent, with delivery status and the underlying error if one failed
+* **Send Test Email / Send Test Webhook** — confirm your notification settings actually work before you need them
 * **WP-CLI support** — `wp cronpulse status` for scripting health checks across sites
 * **REST API** — `GET /wp-json/cronpulse/v1/status` for remote dashboards, authenticated like any other WP REST route
 * Zero external dependencies — pure PHP and vanilla jQuery
@@ -43,7 +46,7 @@ WordPress developers fly blind with WP-Cron. The core tools give you no visibili
 
 = Privacy =
 
-This plugin stores cron execution data (hook name, timestamp, duration) in the WordPress options table. No data is sent externally unless you explicitly configure a webhook URL under alert settings, in which case alert payloads are POSTed to that URL. The REST API endpoint is read-only and pull-based — nothing is sent anywhere on its own. All data is deleted on plugin uninstall.
+This plugin stores cron execution data (hook name, timestamp, duration) in the WordPress options table. No data is sent externally unless you explicitly configure a webhook URL under alert settings, in which case alert payloads are POSTed to that URL. The REST API endpoint is read-only and pull-based — nothing is sent anywhere on its own. If you enable SMTP, your SMTP credentials are stored in the WordPress options table, same as any other plugin setting — no third-party service receives them except the SMTP server you configure. The email log stores recipient addresses and subjects for emails Cron Pulse has sent. All data is deleted on plugin uninstall.
 
 == Installation ==
 
@@ -90,7 +93,20 @@ It acknowledges the current incident for that hook so no further alert is sent f
 
 It's evaluated on every page load along with everything else the plugin tracks, so it only updates when you load a page — there's no background process polling for it.
 
+= Why would I need the SMTP settings? =
+
+Many hosts either don't have PHP's mail() function configured at all, or send through it in a way that gets flagged as spam (no SPF/DKIM alignment, generic "From" address). Configuring SMTP with your own mail provider's credentials routes through a real authenticated mail server instead, without needing a separate SMTP plugin. Use "Send Test Email" after saving to confirm it's actually working.
+
+= Where is the email log stored, and what's in it? =
+
+In the WordPress options table under the key `cronpulse_email_log`, capped at the last 50 entries. Each entry has the recipient, subject, type (alert/test), delivery status, and the underlying error message if it failed. Cleared on uninstall, or anytime via the Clear Email Log button.
+
 == Changelog ==
+
+= 1.4.0 =
+* Added built-in SMTP settings — route alert emails through your own mail provider, no separate SMTP plugin needed
+* Added Email Log tab — see every alert/test email sent, with delivery status and error detail on failure
+* Added Send Test Email and Send Test Webhook buttons to confirm notification settings work before relying on them
 
 = 1.3.1 =
 * Fixed: missing translators comment on a translatable string with a placeholder
@@ -126,6 +142,9 @@ It's evaluated on every page load along with everything else the plugin tracks, 
 * Initial release
 
 == Upgrade Notice ==
+
+= 1.4.0 =
+No action needed. SMTP is off by default — alert emails keep using the server's default mail() function until you enable and save SMTP settings yourself.
 
 = 1.3.1 =
 No action needed. Code-quality and compliance fixes only.

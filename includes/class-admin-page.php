@@ -67,6 +67,7 @@ class CronPulse_Admin_Page {
 
 		$jobs           = self::get_jobs();
 		$log            = CronPulse_Cron_Tracker::get_log();
+		$email_log      = CronPulse_Alerts::get_email_log();
 		$schedules      = wp_get_schedules();
 		$alerts_enabled = CronPulse_Alerts::get_settings()['enabled'];
 
@@ -140,6 +141,12 @@ class CronPulse_Admin_Page {
 					<?php esc_html_e( 'Execution Log', 'cronpulse' ); ?>
 					<?php if ( ! empty( $log ) ) : ?>
 						<span class="cp-badge"><?php echo esc_html( count( $log ) ); ?></span>
+					<?php endif; ?>
+				</a>
+				<a href="#cp-email-log" class="cp-tab" data-tab="email-log">
+					<?php esc_html_e( 'Email Log', 'cronpulse' ); ?>
+					<?php if ( ! empty( $email_log ) ) : ?>
+						<span class="cp-badge"><?php echo esc_html( count( $email_log ) ); ?></span>
 					<?php endif; ?>
 				</a>
 				<a href="#cp-alerts" class="cp-tab" data-tab="alerts">
@@ -298,6 +305,61 @@ class CronPulse_Admin_Page {
 						<td><code><?php echo esc_html( $entry_hook ); ?></code></td>
 						<td><?php echo esc_html( self::format_time( $entry_timestamp ) ); ?></td>
 						<td><?php echo esc_html( $entry_duration ); ?></td>
+					</tr>
+					<?php endforeach; ?>
+					</tbody>
+				</table>
+				<?php endif; ?>
+			</div>
+
+			<!-- Email Log tab -->
+			<div id="cp-email-log" class="cp-tab-panel" style="display:none;">
+				<?php if ( empty( $email_log ) ) : ?>
+					<p class="cp-empty"><?php esc_html_e( 'No emails sent yet. Alert emails (and test emails) will show up here.', 'cronpulse' ); ?></p>
+				<?php else : ?>
+				<div class="cp-log-toolbar">
+					<button class="button cp-clear-email-log"><?php esc_html_e( 'Clear Email Log', 'cronpulse' ); ?></button>
+					<span class="cp-log-count">
+						<?php
+						echo esc_html( sprintf(
+							/* translators: %d = number of email log entries stored */
+							__( '%d entries (newest first, max 50)', 'cronpulse' ),
+							count( $email_log )
+						) );
+						?>
+					</span>
+				</div>
+				<table class="cp-table">
+					<thead>
+						<tr>
+							<th><?php esc_html_e( 'Status',  'cronpulse' ); ?></th>
+							<th><?php esc_html_e( 'To',      'cronpulse' ); ?></th>
+							<th><?php esc_html_e( 'Subject', 'cronpulse' ); ?></th>
+							<th><?php esc_html_e( 'Type',    'cronpulse' ); ?></th>
+							<th><?php esc_html_e( 'Sent At', 'cronpulse' ); ?></th>
+						</tr>
+					</thead>
+					<tbody>
+					<?php foreach ( $email_log as $entry ) :
+						if ( ! is_array( $entry ) || empty( $entry['to'] ) || empty( $entry['timestamp'] ) ) {
+							continue;
+						}
+						$entry_status  = isset( $entry['status'] ) ? sanitize_key( $entry['status'] ) : 'failed';
+						$entry_to      = (string) $entry['to'];
+						$entry_subject = isset( $entry['subject'] ) ? (string) $entry['subject'] : '';
+						$entry_type    = isset( $entry['type'] ) ? (string) $entry['type'] : '';
+						$entry_error   = isset( $entry['error'] ) ? (string) $entry['error'] : '';
+						$dot_status    = 'sent' === $entry_status ? 'success' : 'error';
+					?>
+					<tr class="cp-row">
+						<td>
+							<span class="cp-dot cp-dot-<?php echo esc_attr( $dot_status ); ?>" title="<?php echo esc_attr( $entry_error ); ?>"></span>
+							<span class="cp-status-text"><?php echo esc_html( ucfirst( $entry_status ) ); ?></span>
+						</td>
+						<td><?php echo esc_html( $entry_to ); ?></td>
+						<td><?php echo esc_html( $entry_subject ); ?></td>
+						<td><?php echo esc_html( $entry_type ); ?></td>
+						<td><?php echo esc_html( self::format_time( (int) $entry['timestamp'] ) ); ?></td>
 					</tr>
 					<?php endforeach; ?>
 					</tbody>

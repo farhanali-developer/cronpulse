@@ -298,4 +298,78 @@
 		} );
 	} );
 
+	// -------------------------------------------------------------------------
+	// Send test email
+	// -------------------------------------------------------------------------
+	$( document ).on( 'click', '.cp-test-email', function () {
+		const $btn = $( this );
+
+		$btn.prop( 'disabled', true );
+
+		$.post( cronpulseData.ajaxUrl, {
+			action : 'cronpulse_test_email',
+			nonce  : cronpulseData.nonce,
+		} )
+		.done( function ( res ) {
+			flash( res.data.message || cronpulseData.i18n.error, res.success ? 'success' : 'error' );
+		} )
+		.fail( function () {
+			flash( cronpulseData.i18n.error, 'error' );
+		} )
+		.always( function () {
+			$btn.prop( 'disabled', false );
+		} );
+	} );
+
+	// -------------------------------------------------------------------------
+	// Send test webhook
+	// -------------------------------------------------------------------------
+	$( document ).on( 'click', '.cp-test-webhook', function () {
+		const $btn = $( this );
+
+		$btn.prop( 'disabled', true );
+
+		$.post( cronpulseData.ajaxUrl, {
+			action : 'cronpulse_test_webhook',
+			nonce  : cronpulseData.nonce,
+		} )
+		.done( function ( res ) {
+			flash( res.data.message || cronpulseData.i18n.error, res.success ? 'success' : 'error' );
+		} )
+		.fail( function () {
+			flash( cronpulseData.i18n.error, 'error' );
+		} )
+		.always( function () {
+			$btn.prop( 'disabled', false );
+		} );
+	} );
+
+	// -------------------------------------------------------------------------
+	// Clear email log
+	// -------------------------------------------------------------------------
+	$( document ).on( 'click', '.cp-clear-email-log', function () {
+		if ( ! window.confirm( cronpulseData.i18n.confirmClear ) ) {
+			return;
+		}
+
+		$.post( cronpulseData.ajaxUrl, {
+			action : 'cronpulse_clear_email_log',
+			nonce  : cronpulseData.nonce,
+		} )
+		.done( function ( res ) {
+			if ( res.success ) {
+				$( '#cp-email-log .cp-table' ).remove();
+				$( '#cp-email-log .cp-log-toolbar' ).remove();
+				$( '#cp-email-log' ).append(
+					'<p class="cp-empty">' + 'No emails sent yet. Alert emails (and test emails) will show up here.' + '</p>'
+				);
+				$( '.cp-tab[data-tab="email-log"] .cp-badge' ).remove();
+				flash( res.data.message, 'success' );
+			}
+		} )
+		.fail( function () {
+			flash( cronpulseData.i18n.error, 'error' );
+		} );
+	} );
+
 } )( jQuery );
