@@ -817,31 +817,23 @@ button.cp-test-webhook{
 	padding: 12px 18px;
 }
 
-/* Webhook card: form left, help box right */
-.cp-settings-webhook-row {
+/* Settings card body (padded content between header and form-table) */
+.cp-settings-card-body {
+	padding: 14px 18px 4px;
+}
+.cp-settings-card-body .description {
+	margin: 0;
+}
+
+/* Port + encryption on one line */
+.cp-port-row {
 	display: flex;
-	gap: 0;
-	align-items: flex-start;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
 }
-.cp-settings-webhook-form {
-	flex: 1 1 55%;
-	min-width: 0;
-}
-.cp-settings-webhook-help {
-	flex: 0 0 340px;
-	border-left: 1px solid var(--cp-border);
-	padding: 16px 18px;
-}
-.cp-settings-webhook-help .cp-help-box {
-	border: none;
-	box-shadow: none;
-	padding: 0;
-}
-@media (max-width: 960px) {
-	.cp-settings-webhook-row { flex-direction: column; }
-	.cp-settings-webhook-help {
-		flex: 1 1 auto;
-		border-left: none;
-		border-top: 1px solid var(--cp-border);
-	}
+
+/* Per-job overrides: padding inside card body */
+.cp-settings-card .cp-settings-card-body .wp-list-table {
+	margin-top: 12px;
 }

@@ -2,7 +2,11 @@
 ( function ( $ ) {
 	'use strict';
 
-	const PAGE_SIZE = 25;
+	const PAGE_SIZE       = 10;
+	const LOG_PAGE_SIZE   = 10;
+	const EMAIL_PAGE_SIZE = 10;
+	let logPage      = 1;
+	let emailLogPage = 1;
 	let currentPage = 1;
 	let sortKey     = null; // 'next-run' | 'duration' | null
 	let sortDir     = 'asc';
@@ -347,23 +351,12 @@
 	} );
 
 	// -------------------------------------------------------------------------
-	// Execution log: filter strip
+	// Execution log: filter strip (active-state only; renderLogTable() owns visibility)
 	// -------------------------------------------------------------------------
 	$( document ).on( 'click', '.cp-log-filter', function () {
-		const $btn   = $( this );
-		const filter = $btn.data( 'filter' );
-
 		$( '.cp-log-filter' ).removeClass( 'is-active' );
-		$btn.addClass( 'is-active' );
-
-		$( '.cp-log-row' ).each( function () {
-			const rowStatus = $( this ).data( 'log-status' );
-			if ( ! filter || rowStatus === filter ) {
-				$( this ).show();
-			} else {
-				$( this ).hide();
-			}
-		} );
+		$( this ).addClass( 'is-active' );
+		// renderLogTable() is called via the separate click handler wired above
 	} );
 
 	// -------------------------------------------------------------------------
@@ -395,6 +388,96 @@
 	}
 
 	renderDurationBars();
+
+	// -------------------------------------------------------------------------
+	// Execution log pagination
+	// -------------------------------------------------------------------------
+	function renderLogTable() {
+		const $rows = $( '.cp-log-row' );
+		if ( ! $rows.length ) {
+			return;
+		}
+
+		// Only paginate currently visible rows (respects active filter)
+		const $visible = $rows.filter( ':visible, [data-log-status]' ).filter( function () {
+			const activeFilter = $( '.cp-log-filter.is-active' ).data( 'filter' );
+			if ( ! activeFilter ) {
+				return true;
+			}
+			return $( this ).data( 'log-status' ) === activeFilter;
+		} );
+
+		// Re-filter: hide all, then show page slice
+		$rows.hide();
+
+		const total      = $visible.length;
+		const totalPages = Math.max( 1, Math.ceil( total / LOG_PAGE_SIZE ) );
+		if ( logPage > totalPages ) {
+			logPage = totalPages;
+		}
+
+		const start = ( logPage - 1 ) * LOG_PAGE_SIZE;
+		$visible.slice( start, start + LOG_PAGE_SIZE ).show();
+
+		$( '#cp-log-pagination' ).toggle( totalPages > 1 );
+		$( '#cp-log-page-info' ).text( 'Page ' + logPage + ' of ' + totalPages + ' (' + total + ' entries)' );
+		$( '#cp-log-prev' ).prop( 'disabled', logPage <= 1 );
+		$( '#cp-log-next' ).prop( 'disabled', logPage >= totalPages );
+	}
+
+	// Re-run log pagination whenever the filter changes
+	const _originalLogFilter = $( document ).off( 'click.cplogfilter' );
+	$( document ).on( 'click', '.cp-log-filter', function () {
+		logPage = 1;
+		renderLogTable();
+	} );
+
+	$( '#cp-log-prev' ).on( 'click', function () { logPage--;  renderLogTable(); } );
+	$( '#cp-log-next' ).on( 'click', function () { logPage++;  renderLogTable(); } );
+
+	renderLogTable();
+
+	// -------------------------------------------------------------------------
+	// Email log pagination
+	// -------------------------------------------------------------------------
+	function renderEmailLogTable() {
+		// Each email entry may have a sibling error row — paginate both together
+		const $mainRows = $( '.cp-email-table .cp-row' );
+		if ( ! $mainRows.length ) {
+			return;
+		}
+
+		$mainRows.each( function () {
+			$( this ).hide();
+			$( this ).next( '.cp-email-error-row' ).hide();
+		} );
+
+		const total      = $mainRows.length;
+		const totalPages = Math.max( 1, Math.ceil( total / EMAIL_PAGE_SIZE ) );
+		if ( emailLogPage > totalPages ) {
+			emailLogPage = totalPages;
+		}
+
+		const start = ( emailLogPage - 1 ) * EMAIL_PAGE_SIZE;
+		$mainRows.slice( start, start + EMAIL_PAGE_SIZE ).each( function () {
+			$( this ).show();
+			// Only show error row if it was already expanded
+			const $err = $( this ).next( '.cp-email-error-row' );
+			if ( $( this ).attr( 'aria-expanded' ) === 'true' ) {
+				$err.show();
+			}
+		} );
+
+		$( '#cp-email-log-pagination' ).toggle( totalPages > 1 );
+		$( '#cp-email-log-page-info' ).text( 'Page ' + emailLogPage + ' of ' + totalPages + ' (' + total + ' emails)' );
+		$( '#cp-email-log-prev' ).prop( 'disabled', emailLogPage <= 1 );
+		$( '#cp-email-log-next' ).prop( 'disabled', emailLogPage >= totalPages );
+	}
+
+	$( '#cp-email-log-prev' ).on( 'click', function () { emailLogPage--;  renderEmailLogTable(); } );
+	$( '#cp-email-log-next' ).on( 'click', function () { emailLogPage++;  renderEmailLogTable(); } );
+
+	renderEmailLogTable();
 
 	// -------------------------------------------------------------------------
 	// Send test email

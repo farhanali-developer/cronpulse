@@ -391,6 +391,11 @@ class CronPulse_Admin_Page {
 					<?php endforeach; ?>
 					</tbody>
 				</table>
+				<div id="cp-log-pagination" class="cp-pagination" style="display:none;">
+					<button type="button" id="cp-log-prev" class="button button-small">‹ <?php esc_html_e( 'Previous', 'cronpulse' ); ?></button>
+					<span id="cp-log-page-info"></span>
+					<button type="button" id="cp-log-next" class="button button-small"><?php esc_html_e( 'Next', 'cronpulse' ); ?> ›</button>
+				</div>
 				<?php endif; ?>
 			</div>
 
@@ -470,6 +475,11 @@ class CronPulse_Admin_Page {
 					<?php endforeach; ?>
 					</tbody>
 				</table>
+				<div id="cp-email-log-pagination" class="cp-pagination" style="display:none;">
+					<button type="button" id="cp-email-log-prev" class="button button-small">‹ <?php esc_html_e( 'Previous', 'cronpulse' ); ?></button>
+					<span id="cp-email-log-page-info"></span>
+					<button type="button" id="cp-email-log-next" class="button button-small"><?php esc_html_e( 'Next', 'cronpulse' ); ?> ›</button>
+				</div>
 				<?php endif; ?>
 				</div><!-- .cp-email-log-section -->
 

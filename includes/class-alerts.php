@@ -784,6 +784,9 @@ class CronPulse_Alerts {
 			<?php wp_nonce_field( 'cronpulse_save_alerts', 'cronpulse_alerts_nonce' ); ?>
 			<input type="hidden" name="cronpulse_alerts_submit" value="1" />
 
+			<!-- Two-column layout: cards on the left, webhook help box pinned top-right -->
+			<div class="cp-settings-layout">
+			<div class="cp-settings-main">
 			<div class="cp-settings-cards">
 
 				<!-- Card 1: Alert Rules -->
@@ -849,7 +852,9 @@ class CronPulse_Alerts {
 						<span class="dashicons dashicons-email-alt"></span>
 						<h2><?php esc_html_e( 'Email Delivery (SMTP)', 'cronpulse' ); ?></h2>
 					</div>
-					<p class="description" style="margin:0 0 16px;"><?php esc_html_e( 'Routes alert emails through your own mail provider instead of the server\'s default mail() — no separate SMTP plugin needed.', 'cronpulse' ); ?></p>
+					<div class="cp-settings-card-body">
+						<p class="description"><?php esc_html_e( 'Routes alert emails through your own mail provider instead of the server\'s default mail() — no separate SMTP plugin needed.', 'cronpulse' ); ?></p>
+					</div>
 					<table class="form-table" role="presentation">
 						<tr>
 							<th scope="row">
@@ -872,15 +877,17 @@ class CronPulse_Alerts {
 						</tr>
 						<tr>
 							<th scope="row">
-								<label for="cronpulse-smtp-port"><?php esc_html_e( 'Port', 'cronpulse' ); ?></label>
+								<label for="cronpulse-smtp-port"><?php esc_html_e( 'Port / Encryption', 'cronpulse' ); ?></label>
 							</th>
 							<td>
-								<input type="number" min="1" max="65535" id="cronpulse-smtp-port" name="cronpulse_smtp_port" value="<?php echo esc_attr( $settings['smtp_port'] ); ?>" class="small-text" />
-								<select id="cronpulse-smtp-encryption" name="cronpulse_smtp_encryption" style="margin-left:8px;">
-									<option value="tls" <?php selected( $settings['smtp_encryption'], 'tls' ); ?>>TLS</option>
-									<option value="ssl" <?php selected( $settings['smtp_encryption'], 'ssl' ); ?>>SSL</option>
-									<option value="none" <?php selected( $settings['smtp_encryption'], 'none' ); ?>><?php esc_html_e( 'None', 'cronpulse' ); ?></option>
-								</select>
+								<div class="cp-port-row">
+									<input type="number" min="1" max="65535" id="cronpulse-smtp-port" name="cronpulse_smtp_port" value="<?php echo esc_attr( $settings['smtp_port'] ); ?>" class="small-text" />
+									<select id="cronpulse-smtp-encryption" name="cronpulse_smtp_encryption">
+										<option value="tls" <?php selected( $settings['smtp_encryption'], 'tls' ); ?>>TLS</option>
+										<option value="ssl" <?php selected( $settings['smtp_encryption'], 'ssl' ); ?>>SSL</option>
+										<option value="none" <?php selected( $settings['smtp_encryption'], 'none' ); ?>><?php esc_html_e( 'None', 'cronpulse' ); ?></option>
+									</select>
+								</div>
 								<p class="description"><?php esc_html_e( 'TLS on port 587 is the most common modern setup.', 'cronpulse' ); ?></p>
 							</td>
 						</tr>
@@ -934,25 +941,18 @@ class CronPulse_Alerts {
 						<span class="dashicons dashicons-admin-links"></span>
 						<h2><?php esc_html_e( 'Webhook', 'cronpulse' ); ?></h2>
 					</div>
-					<div class="cp-settings-webhook-row">
-						<div class="cp-settings-webhook-form">
-							<table class="form-table" role="presentation">
-								<tr>
-									<th scope="row">
-										<label for="cronpulse-alert-webhook"><?php esc_html_e( 'Webhook URL', 'cronpulse' ); ?></label>
-									</th>
-									<td>
-										<input type="url" id="cronpulse-alert-webhook" name="cronpulse_alert_webhook" value="<?php echo esc_attr( $settings['webhook'] ); ?>" class="regular-text" placeholder="https://" />
-										<p class="description"><?php esc_html_e( 'Slack, Discord, or your own endpoint. Save settings first, then test.', 'cronpulse' ); ?></p>
-										<button type="button" class="button cp-test-webhook" style="margin-top:8px;"><?php esc_html_e( 'Send Test Webhook', 'cronpulse' ); ?></button>
-									</td>
-								</tr>
-							</table>
-						</div>
-						<div class="cp-settings-webhook-help">
-							<?php self::render_webhook_help_box(); ?>
-						</div>
-					</div>
+					<table class="form-table" role="presentation">
+						<tr>
+							<th scope="row">
+								<label for="cronpulse-alert-webhook"><?php esc_html_e( 'Webhook URL', 'cronpulse' ); ?></label>
+							</th>
+							<td>
+								<input type="url" id="cronpulse-alert-webhook" name="cronpulse_alert_webhook" value="<?php echo esc_attr( $settings['webhook'] ); ?>" class="regular-text" placeholder="https://" />
+								<p class="description"><?php esc_html_e( 'Slack, Discord, or your own endpoint. Save first, then test.', 'cronpulse' ); ?></p>
+								<button type="button" class="button cp-test-webhook" style="margin-top:8px;"><?php esc_html_e( 'Send Test Webhook', 'cronpulse' ); ?></button>
+							</td>
+						</tr>
+					</table>
 				</div>
 
 				<!-- Card 4: Per-Job Overrides -->
@@ -961,11 +961,20 @@ class CronPulse_Alerts {
 						<span class="dashicons dashicons-admin-tools"></span>
 						<h2><?php esc_html_e( 'Per-Job Overrides', 'cronpulse' ); ?></h2>
 					</div>
-					<p class="description" style="margin:0 0 16px;"><?php esc_html_e( 'Override the failure/overdue thresholds above for specific hooks — e.g. a tighter threshold for a payment hook than for a daily cleanup job.', 'cronpulse' ); ?></p>
-					<?php self::render_overrides_table( $settings['per_job'] ); ?>
+					<div class="cp-settings-card-body">
+						<p class="description"><?php esc_html_e( 'Override the failure/overdue thresholds above for specific hooks — e.g. a tighter threshold for a payment hook than for a daily cleanup job.', 'cronpulse' ); ?></p>
+						<?php self::render_overrides_table( $settings['per_job'] ); ?>
+					</div>
 				</div>
 
 			</div><!-- .cp-settings-cards -->
+			</div><!-- .cp-settings-main -->
+
+			<div class="cp-settings-sidebar">
+				<?php self::render_webhook_help_box(); ?>
+			</div>
+
+			</div><!-- .cp-settings-layout -->
 
 			<?php submit_button( __( 'Save Settings', 'cronpulse' ) ); ?>
 		</form>
