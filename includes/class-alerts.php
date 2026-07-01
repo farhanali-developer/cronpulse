@@ -780,175 +780,195 @@ class CronPulse_Alerts {
 	public static function render_settings_tab(): void {
 		$settings = self::get_settings();
 		?>
-		<div class="cp-settings-layout">
-		<div class="cp-settings-main">
 		<form method="post" action="">
 			<?php wp_nonce_field( 'cronpulse_save_alerts', 'cronpulse_alerts_nonce' ); ?>
 			<input type="hidden" name="cronpulse_alerts_submit" value="1" />
 
-			<h2><?php esc_html_e( 'Alerts', 'cronpulse' ); ?></h2>
-			<table class="form-table" role="presentation">
-				<tr>
-					<th scope="row">
-						<label for="cronpulse-alert-enabled"><?php esc_html_e( 'Enable alerts', 'cronpulse' ); ?></label>
-					</th>
-					<td>
-						<label>
-							<input type="checkbox" id="cronpulse-alert-enabled" name="cronpulse_alert_enabled" value="1" <?php checked( $settings['enabled'] ); ?> />
-							<?php esc_html_e( 'Notify me when a job is failing or overdue', 'cronpulse' ); ?>
-						</label>
-					</td>
-				</tr>
-				<tr>
-					<th scope="row">
-						<label for="cronpulse-failure-threshold"><?php esc_html_e( 'Failure threshold', 'cronpulse' ); ?></label>
-					</th>
-					<td>
-						<input type="number" min="1" id="cronpulse-failure-threshold" name="cronpulse_failure_threshold" value="<?php echo esc_attr( $settings['failure_threshold'] ); ?>" class="small-text" />
-						<p class="description"><?php esc_html_e( 'Alert after this many consecutive failed runs for a job.', 'cronpulse' ); ?></p>
-					</td>
-				</tr>
-				<tr>
-					<th scope="row">
-						<label for="cronpulse-overdue-minutes"><?php esc_html_e( 'Overdue threshold (minutes)', 'cronpulse' ); ?></label>
-					</th>
-					<td>
-						<input type="number" min="1" id="cronpulse-overdue-minutes" name="cronpulse_overdue_minutes" value="<?php echo esc_attr( $settings['overdue_minutes'] ); ?>" class="small-text" />
-						<p class="description"><?php esc_html_e( 'Alert when a job has been overdue for longer than this.', 'cronpulse' ); ?></p>
-					</td>
-				</tr>
-				<tr>
-					<th scope="row">
-						<label for="cronpulse-alert-email"><?php esc_html_e( 'Notification email', 'cronpulse' ); ?></label>
-					</th>
-					<td>
-						<input type="email" id="cronpulse-alert-email" name="cronpulse_alert_email" value="<?php echo esc_attr( $settings['email'] ); ?>" class="regular-text" placeholder="<?php echo esc_attr( get_option( 'admin_email' ) ); ?>" />
-						<p class="description"><?php esc_html_e( 'Leave blank to use the site admin email.', 'cronpulse' ); ?></p>
-					</td>
-				</tr>
-				<tr>
-					<th scope="row">
-						<label for="cronpulse-alert-webhook"><?php esc_html_e( 'Webhook URL', 'cronpulse' ); ?></label>
-					</th>
-					<td>
-						<input type="url" id="cronpulse-alert-webhook" name="cronpulse_alert_webhook" value="<?php echo esc_attr( $settings['webhook'] ); ?>" class="regular-text" placeholder="https://" />
-						<button type="button" class="button cp-test-webhook"><?php esc_html_e( 'Send Test Webhook', 'cronpulse' ); ?></button>
-						<p class="description"><?php esc_html_e( 'Optional. Receives a JSON POST for every alert (Slack, Discord, or your own endpoint). Save settings first, then use the button to test the saved URL.', 'cronpulse' ); ?></p>
-					</td>
-				</tr>
-			</table>
+			<div class="cp-settings-cards">
 
-			<h2><?php esc_html_e( 'Email Delivery (SMTP)', 'cronpulse' ); ?></h2>
-			<p class="description"><?php esc_html_e( 'Without this, alert emails go through the server\'s default mail() function, which many hosts either block or send unreliably. Configuring SMTP here routes through your own mail provider — no separate SMTP plugin needed.', 'cronpulse' ); ?></p>
-			<table class="form-table" role="presentation">
-				<tr>
-					<th scope="row">
-						<label for="cronpulse-smtp-enabled"><?php esc_html_e( 'Use SMTP', 'cronpulse' ); ?></label>
-					</th>
-					<td>
-						<label>
-							<input type="checkbox" id="cronpulse-smtp-enabled" name="cronpulse_smtp_enabled" value="1" <?php checked( $settings['smtp_enabled'] ); ?> />
-							<?php esc_html_e( 'Send Cron Pulse emails through the SMTP server below instead of the default mail() function', 'cronpulse' ); ?>
-						</label>
-					</td>
-				</tr>
-				<tr>
-					<th scope="row">
-						<label for="cronpulse-smtp-host"><?php esc_html_e( 'SMTP Host', 'cronpulse' ); ?></label>
-					</th>
-					<td>
-						<input type="text" id="cronpulse-smtp-host" name="cronpulse_smtp_host" value="<?php echo esc_attr( $settings['smtp_host'] ); ?>" class="regular-text" placeholder="smtp.example.com" />
-					</td>
-				</tr>
-				<tr>
-					<th scope="row">
-						<label for="cronpulse-smtp-port"><?php esc_html_e( 'SMTP Port', 'cronpulse' ); ?></label>
-					</th>
-					<td>
-						<input type="number" min="1" max="65535" id="cronpulse-smtp-port" name="cronpulse_smtp_port" value="<?php echo esc_attr( $settings['smtp_port'] ); ?>" class="small-text" />
-					</td>
-				</tr>
-				<tr>
-					<th scope="row">
-						<label for="cronpulse-smtp-encryption"><?php esc_html_e( 'Encryption', 'cronpulse' ); ?></label>
-					</th>
-					<td>
-						<select id="cronpulse-smtp-encryption" name="cronpulse_smtp_encryption">
-							<option value="tls" <?php selected( $settings['smtp_encryption'], 'tls' ); ?>>TLS</option>
-							<option value="ssl" <?php selected( $settings['smtp_encryption'], 'ssl' ); ?>>SSL</option>
-							<option value="none" <?php selected( $settings['smtp_encryption'], 'none' ); ?>><?php esc_html_e( 'None', 'cronpulse' ); ?></option>
-						</select>
-						<p class="description"><?php esc_html_e( 'TLS on port 587 is the most common modern setup.', 'cronpulse' ); ?></p>
-					</td>
-				</tr>
-				<tr>
-					<th scope="row">
-						<label for="cronpulse-smtp-username"><?php esc_html_e( 'SMTP Username', 'cronpulse' ); ?></label>
-					</th>
-					<td>
-						<input type="text" id="cronpulse-smtp-username" name="cronpulse_smtp_username" value="<?php echo esc_attr( $settings['smtp_username'] ); ?>" class="regular-text" autocomplete="off" />
-					</td>
-				</tr>
-				<tr>
-					<th scope="row">
-						<label for="cronpulse-smtp-password"><?php esc_html_e( 'SMTP Password', 'cronpulse' ); ?></label>
-					</th>
-					<td>
-						<input type="password" id="cronpulse-smtp-password" name="cronpulse_smtp_password" value="" class="regular-text" autocomplete="new-password" placeholder="<?php echo $settings['smtp_password'] ? esc_attr__( '•••••••• (leave blank to keep)', 'cronpulse' ) : ''; ?>" />
-						<p class="description"><?php esc_html_e( 'Left blank on every page load for security. Leave it blank when saving to keep the existing password.', 'cronpulse' ); ?></p>
-					</td>
-				</tr>
-				<tr>
-					<th scope="row">
-						<label for="cronpulse-smtp-from-email"><?php esc_html_e( 'From Email', 'cronpulse' ); ?></label>
-					</th>
-					<td>
-						<input type="email" id="cronpulse-smtp-from-email" name="cronpulse_smtp_from_email" value="<?php echo esc_attr( $settings['smtp_from_email'] ); ?>" class="regular-text" placeholder="<?php echo esc_attr( get_option( 'admin_email' ) ); ?>" />
-						<p class="description"><?php esc_html_e( 'Optional. Many SMTP providers require this to match an address they\'ve verified.', 'cronpulse' ); ?></p>
-					</td>
-				</tr>
-				<tr>
-					<th scope="row">
-						<label for="cronpulse-smtp-from-name"><?php esc_html_e( 'From Name', 'cronpulse' ); ?></label>
-					</th>
-					<td>
-						<input type="text" id="cronpulse-smtp-from-name" name="cronpulse_smtp_from_name" value="<?php echo esc_attr( $settings['smtp_from_name'] ); ?>" class="regular-text" placeholder="<?php echo esc_attr( get_bloginfo( 'name' ) ); ?>" />
-					</td>
-				</tr>
-				<tr>
-					<th scope="row"><?php esc_html_e( 'Test', 'cronpulse' ); ?></th>
-					<td>
-						<button type="button" class="button cp-test-email"><?php esc_html_e( 'Send Test Email', 'cronpulse' ); ?></button>
-						<p class="description"><?php esc_html_e( 'Save settings first, then use this to confirm delivery actually works. Sent to the notification email above (or the site admin email).', 'cronpulse' ); ?></p>
-					</td>
-				</tr>
-			</table>
+				<!-- Card 1: Alert Rules -->
+				<div class="cp-settings-card">
+					<div class="cp-settings-card-header">
+						<span class="dashicons dashicons-bell"></span>
+						<h2><?php esc_html_e( 'Alert Rules', 'cronpulse' ); ?></h2>
+					</div>
+					<table class="form-table" role="presentation">
+						<tr>
+							<th scope="row">
+								<label for="cronpulse-alert-enabled"><?php esc_html_e( 'Enable alerts', 'cronpulse' ); ?></label>
+							</th>
+							<td>
+								<label>
+									<input type="checkbox" id="cronpulse-alert-enabled" name="cronpulse_alert_enabled" value="1" <?php checked( $settings['enabled'] ); ?> />
+									<?php esc_html_e( 'Notify me when a job is failing or overdue', 'cronpulse' ); ?>
+								</label>
+							</td>
+						</tr>
+						<tr>
+							<th scope="row">
+								<label for="cronpulse-failure-threshold"><?php esc_html_e( 'Failure threshold', 'cronpulse' ); ?></label>
+							</th>
+							<td>
+								<input type="number" min="1" id="cronpulse-failure-threshold" name="cronpulse_failure_threshold" value="<?php echo esc_attr( $settings['failure_threshold'] ); ?>" class="small-text" />
+								<p class="description"><?php esc_html_e( 'Alert after this many consecutive failed runs for a job.', 'cronpulse' ); ?></p>
+							</td>
+						</tr>
+						<tr>
+							<th scope="row">
+								<label for="cronpulse-overdue-minutes"><?php esc_html_e( 'Overdue threshold (minutes)', 'cronpulse' ); ?></label>
+							</th>
+							<td>
+								<input type="number" min="1" id="cronpulse-overdue-minutes" name="cronpulse_overdue_minutes" value="<?php echo esc_attr( $settings['overdue_minutes'] ); ?>" class="small-text" />
+								<p class="description"><?php esc_html_e( 'Alert when a job has been overdue for longer than this.', 'cronpulse' ); ?></p>
+							</td>
+						</tr>
+						<tr>
+							<th scope="row">
+								<label for="cronpulse-alert-email"><?php esc_html_e( 'Notification email', 'cronpulse' ); ?></label>
+							</th>
+							<td>
+								<input type="email" id="cronpulse-alert-email" name="cronpulse_alert_email" value="<?php echo esc_attr( $settings['email'] ); ?>" class="regular-text" placeholder="<?php echo esc_attr( get_option( 'admin_email' ) ); ?>" />
+								<p class="description"><?php esc_html_e( 'Leave blank to use the site admin email.', 'cronpulse' ); ?></p>
+							</td>
+						</tr>
+						<tr>
+							<th scope="row">
+								<label for="cronpulse-log-retention"><?php esc_html_e( 'Log retention', 'cronpulse' ); ?></label>
+							</th>
+							<td>
+								<input type="number" min="10" max="5000" id="cronpulse-log-retention" name="cronpulse_log_retention" value="<?php echo esc_attr( $settings['log_retention'] ); ?>" class="small-text" />
+								<p class="description"><?php esc_html_e( 'Number of execution log entries to keep (10–5000).', 'cronpulse' ); ?></p>
+							</td>
+						</tr>
+					</table>
+				</div>
 
-			<h2><?php esc_html_e( 'Per-Job Overrides', 'cronpulse' ); ?></h2>
-			<p class="description"><?php esc_html_e( 'Override the failure/overdue thresholds above for specific hooks — e.g. a tighter threshold for a payment hook than for a daily cleanup job.', 'cronpulse' ); ?></p>
-			<?php self::render_overrides_table( $settings['per_job'] ); ?>
+				<!-- Card 2: SMTP -->
+				<div class="cp-settings-card">
+					<div class="cp-settings-card-header">
+						<span class="dashicons dashicons-email-alt"></span>
+						<h2><?php esc_html_e( 'Email Delivery (SMTP)', 'cronpulse' ); ?></h2>
+					</div>
+					<p class="description" style="margin:0 0 16px;"><?php esc_html_e( 'Routes alert emails through your own mail provider instead of the server\'s default mail() — no separate SMTP plugin needed.', 'cronpulse' ); ?></p>
+					<table class="form-table" role="presentation">
+						<tr>
+							<th scope="row">
+								<label for="cronpulse-smtp-enabled"><?php esc_html_e( 'Use SMTP', 'cronpulse' ); ?></label>
+							</th>
+							<td>
+								<label>
+									<input type="checkbox" id="cronpulse-smtp-enabled" name="cronpulse_smtp_enabled" value="1" <?php checked( $settings['smtp_enabled'] ); ?> />
+									<?php esc_html_e( 'Send through the SMTP server below', 'cronpulse' ); ?>
+								</label>
+							</td>
+						</tr>
+						<tr>
+							<th scope="row">
+								<label for="cronpulse-smtp-host"><?php esc_html_e( 'SMTP Host', 'cronpulse' ); ?></label>
+							</th>
+							<td>
+								<input type="text" id="cronpulse-smtp-host" name="cronpulse_smtp_host" value="<?php echo esc_attr( $settings['smtp_host'] ); ?>" class="regular-text" placeholder="smtp.example.com" />
+							</td>
+						</tr>
+						<tr>
+							<th scope="row">
+								<label for="cronpulse-smtp-port"><?php esc_html_e( 'Port', 'cronpulse' ); ?></label>
+							</th>
+							<td>
+								<input type="number" min="1" max="65535" id="cronpulse-smtp-port" name="cronpulse_smtp_port" value="<?php echo esc_attr( $settings['smtp_port'] ); ?>" class="small-text" />
+								<select id="cronpulse-smtp-encryption" name="cronpulse_smtp_encryption" style="margin-left:8px;">
+									<option value="tls" <?php selected( $settings['smtp_encryption'], 'tls' ); ?>>TLS</option>
+									<option value="ssl" <?php selected( $settings['smtp_encryption'], 'ssl' ); ?>>SSL</option>
+									<option value="none" <?php selected( $settings['smtp_encryption'], 'none' ); ?>><?php esc_html_e( 'None', 'cronpulse' ); ?></option>
+								</select>
+								<p class="description"><?php esc_html_e( 'TLS on port 587 is the most common modern setup.', 'cronpulse' ); ?></p>
+							</td>
+						</tr>
+						<tr>
+							<th scope="row">
+								<label for="cronpulse-smtp-username"><?php esc_html_e( 'Username', 'cronpulse' ); ?></label>
+							</th>
+							<td>
+								<input type="text" id="cronpulse-smtp-username" name="cronpulse_smtp_username" value="<?php echo esc_attr( $settings['smtp_username'] ); ?>" class="regular-text" autocomplete="off" />
+							</td>
+						</tr>
+						<tr>
+							<th scope="row">
+								<label for="cronpulse-smtp-password"><?php esc_html_e( 'Password', 'cronpulse' ); ?></label>
+							</th>
+							<td>
+								<input type="password" id="cronpulse-smtp-password" name="cronpulse_smtp_password" value="" class="regular-text" autocomplete="new-password" placeholder="<?php echo $settings['smtp_password'] ? esc_attr__( '•••••••• (leave blank to keep)', 'cronpulse' ) : ''; ?>" />
+								<p class="description"><?php esc_html_e( 'Left blank on every page load. Leave it blank when saving to keep the current password.', 'cronpulse' ); ?></p>
+							</td>
+						</tr>
+						<tr>
+							<th scope="row">
+								<label for="cronpulse-smtp-from-email"><?php esc_html_e( 'From Email', 'cronpulse' ); ?></label>
+							</th>
+							<td>
+								<input type="email" id="cronpulse-smtp-from-email" name="cronpulse_smtp_from_email" value="<?php echo esc_attr( $settings['smtp_from_email'] ); ?>" class="regular-text" placeholder="<?php echo esc_attr( get_option( 'admin_email' ) ); ?>" />
+								<p class="description"><?php esc_html_e( 'Optional. Many providers require this to match a verified address.', 'cronpulse' ); ?></p>
+							</td>
+						</tr>
+						<tr>
+							<th scope="row">
+								<label for="cronpulse-smtp-from-name"><?php esc_html_e( 'From Name', 'cronpulse' ); ?></label>
+							</th>
+							<td>
+								<input type="text" id="cronpulse-smtp-from-name" name="cronpulse_smtp_from_name" value="<?php echo esc_attr( $settings['smtp_from_name'] ); ?>" class="regular-text" placeholder="<?php echo esc_attr( get_bloginfo( 'name' ) ); ?>" />
+							</td>
+						</tr>
+						<tr>
+							<th scope="row"><?php esc_html_e( 'Test', 'cronpulse' ); ?></th>
+							<td>
+								<button type="button" class="button cp-test-email"><?php esc_html_e( 'Send Test Email', 'cronpulse' ); ?></button>
+								<p class="description"><?php esc_html_e( 'Save settings first, then confirm delivery works.', 'cronpulse' ); ?></p>
+							</td>
+						</tr>
+					</table>
+				</div>
 
-			<h2><?php esc_html_e( 'General', 'cronpulse' ); ?></h2>
-			<table class="form-table" role="presentation">
-				<tr>
-					<th scope="row">
-						<label for="cronpulse-log-retention"><?php esc_html_e( 'Log retention', 'cronpulse' ); ?></label>
-					</th>
-					<td>
-						<input type="number" min="10" max="5000" id="cronpulse-log-retention" name="cronpulse_log_retention" value="<?php echo esc_attr( $settings['log_retention'] ); ?>" class="small-text" />
-						<p class="description"><?php esc_html_e( 'Number of execution log entries to keep (10–5000).', 'cronpulse' ); ?></p>
-					</td>
-				</tr>
-			</table>
+				<!-- Card 3: Webhook -->
+				<div class="cp-settings-card">
+					<div class="cp-settings-card-header">
+						<span class="dashicons dashicons-admin-links"></span>
+						<h2><?php esc_html_e( 'Webhook', 'cronpulse' ); ?></h2>
+					</div>
+					<div class="cp-settings-webhook-row">
+						<div class="cp-settings-webhook-form">
+							<table class="form-table" role="presentation">
+								<tr>
+									<th scope="row">
+										<label for="cronpulse-alert-webhook"><?php esc_html_e( 'Webhook URL', 'cronpulse' ); ?></label>
+									</th>
+									<td>
+										<input type="url" id="cronpulse-alert-webhook" name="cronpulse_alert_webhook" value="<?php echo esc_attr( $settings['webhook'] ); ?>" class="regular-text" placeholder="https://" />
+										<p class="description"><?php esc_html_e( 'Slack, Discord, or your own endpoint. Save settings first, then test.', 'cronpulse' ); ?></p>
+										<button type="button" class="button cp-test-webhook" style="margin-top:8px;"><?php esc_html_e( 'Send Test Webhook', 'cronpulse' ); ?></button>
+									</td>
+								</tr>
+							</table>
+						</div>
+						<div class="cp-settings-webhook-help">
+							<?php self::render_webhook_help_box(); ?>
+						</div>
+					</div>
+				</div>
+
+				<!-- Card 4: Per-Job Overrides -->
+				<div class="cp-settings-card">
+					<div class="cp-settings-card-header">
+						<span class="dashicons dashicons-admin-tools"></span>
+						<h2><?php esc_html_e( 'Per-Job Overrides', 'cronpulse' ); ?></h2>
+					</div>
+					<p class="description" style="margin:0 0 16px;"><?php esc_html_e( 'Override the failure/overdue thresholds above for specific hooks — e.g. a tighter threshold for a payment hook than for a daily cleanup job.', 'cronpulse' ); ?></p>
+					<?php self::render_overrides_table( $settings['per_job'] ); ?>
+				</div>
+
+			</div><!-- .cp-settings-cards -->
 
 			<?php submit_button( __( 'Save Settings', 'cronpulse' ) ); ?>
 		</form>
-		</div><!-- .cp-settings-main -->
-
-		<div class="cp-settings-sidebar">
-			<?php self::render_webhook_help_box(); ?>
-		</div>
-		</div><!-- .cp-settings-layout -->
 		<?php
 	}
 
@@ -983,15 +1003,15 @@ class CronPulse_Alerts {
 			<h4><?php esc_html_e( 'Your Own Endpoint', 'cronpulse' ); ?></h4>
 			<p><?php esc_html_e( 'Receives an HTTP POST, Content-Type: application/json:', 'cronpulse' ); ?></p>
 			<pre class="cp-help-code">{
-				"plugin": "cronpulse",
-				"hook": "my_cron_hook",
-				"type": "failure",
-				"site": "https://example.com",
-				"message": "...",
-				"text": "...",
-				"content": "..."
-				}
-			</pre>
+"plugin": "cronpulse",
+"hook": "my_cron_hook",
+"type": "failure",
+"site": "https://example.com",
+"message": "...",
+"text": "...",
+"content": "..."
+}
+</pre>
 			<p class="description"><?php esc_html_e( '"text" and "content" are included so the same payload works as-is with Slack and Discord — safe to ignore them if you only need the structured fields.', 'cronpulse' ); ?></p>
 
 			<p class="description"><?php esc_html_e( 'Once saved, use "Send Test Webhook" above to confirm it actually arrives.', 'cronpulse' ); ?></p>

@@ -492,3 +492,356 @@ button.cp-test-webhook{
 .cp-debug-diagnostics .description {
 	margin: 6px 0 0;
 }
+
+/* =========================================================
+   v1.1.0 — Design Enhancements
+   ========================================================= */
+
+/* Alert banner -------------------------------------------- */
+.cp-alert-banner {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	background: #fcebec;
+	border: 1px solid var(--cp-overdue);
+	border-left: 4px solid var(--cp-overdue);
+	border-radius: var(--cp-radius);
+	padding: 10px 14px;
+	margin-bottom: 16px;
+	font-size: 0.875rem;
+	font-weight: 500;
+	color: #5c1b1d;
+}
+.cp-alert-banner .dashicons {
+	color: var(--cp-overdue);
+	font-size: 1rem;
+	width: 1rem;
+	height: 1rem;
+	flex-shrink: 0;
+}
+.cp-alert-banner-link {
+	color: var(--cp-overdue);
+	font-weight: 600;
+	text-decoration: underline;
+}
+.cp-alert-banner-dismiss {
+	margin-left: auto;
+	background: none;
+	border: none;
+	cursor: pointer;
+	color: var(--cp-overdue);
+	font-size: 1rem;
+	line-height: 1;
+	padding: 2px 4px;
+	opacity: .7;
+}
+.cp-alert-banner-dismiss:hover { opacity: 1; }
+
+/* Summary card enhancements -------------------------------- */
+.cp-summary-card {
+	border-left: 4px solid transparent;
+	transition: border-color .15s;
+}
+.cp-summary-card.cp-healthy { border-left-color: var(--cp-healthy); }
+.cp-summary-card.cp-overdue { border-left-color: var(--cp-overdue); }
+.cp-summary-card.cp-failing { border-left-color: var(--cp-overdue); }
+.cp-summary-card.cp-never   { border-left-color: var(--cp-pending); }
+.cp-summary-sub {
+	font-size: 0.68rem;
+	color: var(--cp-overdue);
+	margin-top: 3px;
+	font-style: italic;
+}
+
+/* Alert badge on Jobs tab ---------------------------------- */
+.cp-badge-alert {
+	background: var(--cp-overdue);
+}
+
+/* Schedule strip ------------------------------------------ */
+.cp-schedule-strip {
+	margin: 0 0 20px;
+	padding: 10px 0 6px;
+	user-select: none;
+}
+.cp-strip-labels {
+	display: flex;
+	justify-content: space-between;
+	font-size: 0.7rem;
+	color: var(--cp-muted);
+	margin-bottom: 4px;
+	padding: 0 2px;
+}
+.cp-strip-track {
+	position: relative;
+	height: 20px;
+	background: #f0f0f1;
+	border-radius: 10px;
+	overflow: visible;
+}
+.cp-strip-track::before {
+	content: '';
+	display: block;
+	position: absolute;
+	inset: 50% 0 auto;
+	height: 2px;
+	background: #dcdcde;
+	border-radius: 1px;
+	transform: translateY(-50%);
+}
+.cp-strip-dot {
+	position: absolute;
+	top: 50%;
+	transform: translate(-50%, -50%);
+	width: 12px;
+	height: 12px;
+	border-radius: 50%;
+	border: 2px solid #fff;
+	box-shadow: 0 1px 3px rgba(0,0,0,.18);
+	cursor: help;
+	transition: transform .1s;
+}
+.cp-strip-dot:hover { transform: translate(-50%, -50%) scale(1.4); }
+.cp-strip-dot--healthy  { background: var(--cp-healthy); }
+.cp-strip-dot--overdue  { background: var(--cp-overdue); }
+.cp-strip-dot--failing  { background: var(--cp-overdue); }
+.cp-strip-dot--pending  { background: var(--cp-pending); }
+
+/* Status chips (pill badges) ------------------------------ */
+.cp-chip {
+	display: inline-block;
+	font-size: 0.72rem;
+	font-weight: 600;
+	letter-spacing: .3px;
+	padding: 2px 9px;
+	border-radius: 10px;
+	white-space: nowrap;
+	text-transform: capitalize;
+}
+.cp-chip-healthy, .cp-chip-success {
+	background: #edfaef;
+	color: #0a4718;
+	border: 1px solid #6ec47e;
+}
+.cp-chip-overdue, .cp-chip-failing, .cp-chip-fatal,
+.cp-chip-stuck, .cp-chip-incomplete, .cp-chip-error {
+	background: #fcebec;
+	color: #5c1b1d;
+	border: 1px solid #f09ea0;
+}
+.cp-chip-pending, .cp-chip-never {
+	background: #fef8e7;
+	color: #5a3e00;
+	border: 1px solid #e6b800;
+}
+
+/* Expandable job rows ------------------------------------- */
+.cp-col-expand {
+	width: 28px;
+	text-align: center;
+}
+.cp-expand-icon {
+	display: inline-block;
+	font-size: 1.1rem;
+	color: var(--cp-muted);
+	transition: transform .2s;
+	line-height: 1;
+}
+.cp-job-row {
+	cursor: pointer;
+}
+.cp-job-row:hover .cp-expand-icon { color: #2271b1; }
+.cp-job-row--open .cp-expand-icon { transform: rotate(90deg); color: #2271b1; }
+.cp-job-detail td { padding: 0; }
+.cp-job-detail-cell {
+	padding: 0 !important;
+	border-bottom: 2px solid var(--cp-border) !important;
+}
+.cp-job-detail-inner {
+	padding: 14px 16px 14px 20px;
+	background: #f6f7f7;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+.cp-job-detail--overdue .cp-job-detail-inner,
+.cp-job-detail--failing .cp-job-detail-inner {
+	border-left: 3px solid var(--cp-overdue);
+}
+.cp-job-detail-meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 16px;
+	font-size: 0.82rem;
+	color: #3c434a;
+}
+.cp-job-detail-meta span strong { color: #1d2327; }
+.cp-job-detail-error {
+	font-size: 0.82rem;
+}
+.cp-error-code {
+	display: block;
+	margin-top: 4px;
+	background: #1d2327;
+	color: #c3c4c7;
+	border-radius: var(--cp-radius);
+	padding: 8px 12px;
+	font-size: 0.78rem;
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+.cp-job-detail-actions {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+/* Execution log improvements ------------------------------ */
+.cp-log-top-bar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 10px;
+	margin-bottom: 12px;
+}
+.cp-log-filter-strip {
+	display: flex;
+	gap: 4px;
+}
+.cp-log-filter {
+	background: #f0f0f1;
+	border: 1px solid var(--cp-border);
+	border-radius: 20px;
+	padding: 4px 14px;
+	font-size: 0.8rem;
+	font-weight: 500;
+	cursor: pointer;
+	color: #3c434a;
+	transition: background .12s, color .12s, border-color .12s;
+}
+.cp-log-filter:hover { background: #e0e0e0; }
+.cp-log-filter.is-active {
+	background: #2271b1;
+	border-color: #2271b1;
+	color: #fff;
+}
+
+/* Duration bars in execution log */
+.cp-duration-cell {
+	white-space: nowrap;
+}
+.cp-duration-bar {
+	display: inline-block;
+	height: 6px;
+	border-radius: 3px;
+	background: #2271b1;
+	opacity: .45;
+	margin-left: 8px;
+	vertical-align: middle;
+	min-width: 2px;
+	max-width: 80px;
+	transition: opacity .1s;
+}
+.cp-duration-cell:hover .cp-duration-bar { opacity: .8; }
+
+/* Failed/stuck row borders in execution log */
+.cp-log-table tbody .cp-status-fatal td:first-child,
+.cp-log-table tbody .cp-status-incomplete td:first-child,
+.cp-log-table tbody .cp-status-stuck td:first-child {
+	border-left: 3px solid var(--cp-overdue);
+}
+.cp-log-table tbody .cp-status-success td:first-child {
+	border-left: 3px solid var(--cp-healthy);
+}
+
+/* Email log improvements ---------------------------------- */
+.cp-email-row--expandable {
+	cursor: pointer;
+}
+.cp-email-row--expandable:hover { background: #f9f9fb; }
+.cp-expand-hint {
+	margin-left: 6px;
+	font-size: 0.72rem;
+	color: var(--cp-muted);
+}
+.cp-email-error-cell {
+	font-size: 0.82rem;
+	background: #fcebec;
+	color: #5c1b1d;
+	padding: 10px 14px !important;
+	border-left: 3px solid var(--cp-overdue);
+}
+
+/* Settings card sections ---------------------------------- */
+.cp-settings-cards {
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+	max-width: 960px;
+	margin-bottom: 20px;
+}
+.cp-settings-card {
+	background: var(--cp-surface);
+	border: 1px solid var(--cp-border);
+	border-radius: var(--cp-radius);
+	box-shadow: var(--cp-shadow);
+	overflow: hidden;
+}
+.cp-settings-card-header {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 14px 18px;
+	background: #f6f7f7;
+	border-bottom: 1px solid var(--cp-border);
+}
+.cp-settings-card-header h2 {
+	margin: 0;
+	font-size: 1rem;
+	font-weight: 600;
+	color: #1d2327;
+}
+.cp-settings-card-header .dashicons {
+	color: #2271b1;
+	font-size: 1.1rem;
+	width: 1.1rem;
+	height: 1.1rem;
+}
+.cp-settings-card .form-table {
+	margin: 0;
+	padding: 4px 0;
+}
+.cp-settings-card .form-table th,
+.cp-settings-card .form-table td {
+	padding: 12px 18px;
+}
+
+/* Webhook card: form left, help box right */
+.cp-settings-webhook-row {
+	display: flex;
+	gap: 0;
+	align-items: flex-start;
+}
+.cp-settings-webhook-form {
+	flex: 1 1 55%;
+	min-width: 0;
+}
+.cp-settings-webhook-help {
+	flex: 0 0 340px;
+	border-left: 1px solid var(--cp-border);
+	padding: 16px 18px;
+}
+.cp-settings-webhook-help .cp-help-box {
+	border: none;
+	box-shadow: none;
+	padding: 0;
+}
+@media (max-width: 960px) {
+	.cp-settings-webhook-row { flex-direction: column; }
+	.cp-settings-webhook-help {
+		flex: 1 1 auto;
+		border-left: none;
+		border-top: 1px solid var(--cp-border);
+	}
+}

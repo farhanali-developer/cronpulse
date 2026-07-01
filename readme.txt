@@ -3,7 +3,7 @@ Contributors:      farhanalidev
 Tags:              cron, cron jobs, wp-cron, developer tools, debugging
 Requires at least: 5.8
 Tested up to:      7.0
-Stable tag:        1.0.0
+Stable tag:        1.1.0
 Requires PHP:      7.4
 License:           GPL-2.0-or-later
 License URI:       https://www.gnu.org/licenses/gpl-2.0.html
@@ -108,10 +108,25 @@ Check the Email Debug Log on the Email Log tab. When SMTP is enabled it captures
 
 == Changelog ==
 
+= 1.1.0 =
+* New: Alert banner above the dashboard when jobs are failing or overdue — dismissible per session
+* New: Upcoming schedule strip showing the next 8 hours of scheduled runs as a visual timeline
+* New: Expandable job rows — click any row for inline details (error message, sparkline, actions); failing/overdue rows pre-expanded
+* New: Status chips (pill badges) throughout — replaces the small dot + plain text pattern
+* New: Execution log filter strip — one-click filter for All / Success / Failed / Stuck
+* New: Duration bars in the execution log — proportional mini bars give a visual sense of relative run time
+* New: Inline error expansion in the Email Log — click a failed row to see the error without leaving the tab
+* Improved: Summary cards now have colored left borders and show "overdue since" duration on the Overdue card
+* Improved: Settings tab restructured into three sectioned cards (Alert Rules, SMTP, Webhook) for clarity
+* Improved: Failed/stuck execution log rows now have a colored left border stripe matching their severity
+
 = 1.0.0 =
 * Initial release
 
 == Upgrade Notice ==
+
+= 1.1.0 =
+Dashboard visual refresh: alert banner, expandable rows, schedule timeline, filter strips. No data changes.
 
 = 1.0.0 =
 Initial release.

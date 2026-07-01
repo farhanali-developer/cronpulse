@@ -51,14 +51,28 @@
 	}
 
 	// -------------------------------------------------------------------------
+	// Alert banner — dismiss for the session, jump to Jobs tab on link click
+	// -------------------------------------------------------------------------
+	if ( sessionStorage.getItem( 'cp_banner_dismissed' ) ) {
+		$( '.cp-alert-banner' ).hide();
+	}
+
+	$( document ).on( 'click', '.cp-alert-banner-dismiss', function () {
+		$( '.cp-alert-banner' ).slideUp( 200 );
+		sessionStorage.setItem( 'cp_banner_dismissed', '1' );
+	} );
+
+	$( document ).on( 'click', '.cp-alert-banner-link', function ( e ) {
+		e.preventDefault();
+		const tab = $( this ).data( 'tab' ) || 'jobs';
+		activateTab( tab );
+	} );
+
+	// -------------------------------------------------------------------------
 	// Jobs table: search + status filter + sort + pagination
-	//
-	// All four behaviors share one row set, so they're combined into a single
-	// renderTable() rather than independent handlers stepping on each other
-	// (e.g. a filter hiding rows pagination already sliced to a page).
 	// -------------------------------------------------------------------------
 	function getAllRows() {
-		return $( '#cp-jobs .cp-table tbody tr.cp-row[data-hook]' );
+		return $( '#cp-jobs .cp-table tbody tr.cp-job-row[data-hook]' );
 	}
 
 	function renderTable() {
@@ -78,8 +92,13 @@
 				const bv = parseFloat( $( b ).data( sortKey ) );
 				return sortDir === 'asc' ? av - bv : bv - av;
 			} );
+			// Re-append main rows and keep detail rows immediately after each
 			$.each( rows, function ( i, row ) {
+				const $detail = $( row ).next( '.cp-job-detail' );
 				$tbody.append( row );
+				if ( $detail.length ) {
+					$tbody.append( $detail );
+				}
 			} );
 		}
 
@@ -95,7 +114,11 @@
 			return matchesText && matchesStatus;
 		} );
 
-		$rows.hide();
+		// Hide all main rows and their detail rows
+		$rows.each( function () {
+			$( this ).hide();
+			$( this ).next( '.cp-job-detail' ).hide();
+		} );
 
 		const totalPages = Math.max( 1, Math.ceil( $matching.length / PAGE_SIZE ) );
 		if ( currentPage > totalPages ) {
@@ -103,7 +126,14 @@
 		}
 
 		const start = ( currentPage - 1 ) * PAGE_SIZE;
-		$matching.slice( start, start + PAGE_SIZE ).show();
+		$matching.slice( start, start + PAGE_SIZE ).each( function () {
+			$( this ).show();
+			const $detail = $( this ).next( '.cp-job-detail' );
+			// Show detail row only if it was already open
+			if ( $detail.length && $( this ).hasClass( 'cp-job-row--open' ) ) {
+				$detail.show();
+			}
+		} );
 
 		$( '#cp-pagination' ).toggle( totalPages > 1 );
 		$( '#cp-page-info' ).text(
@@ -149,6 +179,27 @@
 	renderTable();
 
 	// -------------------------------------------------------------------------
+	// Expandable job rows
+	// -------------------------------------------------------------------------
+	$( document ).on( 'click', '.cp-job-row', function ( e ) {
+		// Don't toggle if a button inside the row was clicked
+		if ( $( e.target ).closest( 'button, a' ).length ) {
+			return;
+		}
+
+		const $row    = $( this );
+		const $detail = $row.next( '.cp-job-detail' );
+
+		if ( ! $detail.length ) {
+			return;
+		}
+
+		const isOpen = $row.hasClass( 'cp-job-row--open' );
+		$row.toggleClass( 'cp-job-row--open', ! isOpen );
+		$detail.toggle( ! isOpen );
+	} );
+
+	// -------------------------------------------------------------------------
 	// Run Now
 	// -------------------------------------------------------------------------
 	$( document ).on( 'click', '.cp-run-now', function () {
@@ -168,27 +219,22 @@
 			if ( res.success ) {
 				flash( res.data.message, 'success' );
 
-				const $row = $btn.closest( 'tr' );
+				const $mainRow = $btn.closest( '.cp-job-detail' ).prev( '.cp-job-row' );
 
-				// Update duration cell in the same row
 				if ( res.data.duration !== undefined ) {
-					$row.find( '.cp-duration-text' ).text( res.data.duration + ' ms' );
-					$row.attr( 'data-duration', res.data.duration );
+					$mainRow.attr( 'data-duration', res.data.duration );
+					$mainRow.next( '.cp-job-detail' ).find( '.cp-duration-text' ).text( res.data.duration + ' ms' );
 				}
 
-				// Update last run cell
-				const $lastRun = $row.find( 'td' ).eq( 4 );
-				$lastRun.text( 'Just now' );
-
-				// Flip status if it was overdue/pending/failing → healthy
-				$row.removeClass( 'cp-status-overdue cp-status-pending cp-status-failing' )
-				    .addClass( 'cp-status-healthy' )
-				    .attr( 'data-status', 'healthy' );
-				$row.find( '.cp-dot' )
-				    .removeClass( 'cp-dot-overdue cp-dot-pending cp-dot-failing' )
-				    .addClass( 'cp-dot-healthy' );
-				$row.find( '.cp-status-text' ).text( 'Healthy' );
-				$row.find( '.cp-snooze' ).remove();
+				// Flip status chip if it was overdue/pending/failing → healthy
+				$mainRow.removeClass( 'cp-status-overdue cp-status-pending cp-status-failing' )
+				        .addClass( 'cp-status-healthy' )
+				        .attr( 'data-status', 'healthy' );
+				$mainRow.find( '.cp-chip' )
+				        .removeClass( 'cp-chip-overdue cp-chip-pending cp-chip-failing' )
+				        .addClass( 'cp-chip-healthy' )
+				        .text( 'Healthy' );
+				$mainRow.next( '.cp-job-detail' ).find( '.cp-snooze' ).remove();
 
 				renderTable();
 
@@ -219,11 +265,11 @@
 		.done( function ( res ) {
 			if ( res.success ) {
 				$( '#cp-log .cp-table' ).remove();
-				$( '.cp-log-toolbar' ).remove();
+				$( '#cp-log .cp-log-top-bar' ).remove();
 				$( '#cp-log' ).append(
-					'<p class="cp-empty">' + 'Log cleared.' + '</p>'
+					'<p class="cp-empty">Log cleared.</p>'
 				);
-				$( '.cp-badge' ).remove();
+				$( '.cp-tab[data-tab="log"] .cp-badge' ).remove();
 				flash( res.data.message, 'success' );
 			}
 		} )
@@ -256,7 +302,9 @@
 		.done( function ( res ) {
 			if ( res.success ) {
 				flash( res.data.message, 'success' );
-				$btn.closest( 'tr' ).remove();
+				const $mainRow = $btn.closest( '.cp-job-detail' ).prev( '.cp-job-row' );
+				$btn.closest( '.cp-job-detail' ).remove();
+				$mainRow.remove();
 				renderTable();
 			} else {
 				flash( res.data.message || cronpulseData.i18n.error, 'error' );
@@ -297,6 +345,56 @@
 			$btn.prop( 'disabled', false );
 		} );
 	} );
+
+	// -------------------------------------------------------------------------
+	// Execution log: filter strip
+	// -------------------------------------------------------------------------
+	$( document ).on( 'click', '.cp-log-filter', function () {
+		const $btn   = $( this );
+		const filter = $btn.data( 'filter' );
+
+		$( '.cp-log-filter' ).removeClass( 'is-active' );
+		$btn.addClass( 'is-active' );
+
+		$( '.cp-log-row' ).each( function () {
+			const rowStatus = $( this ).data( 'log-status' );
+			if ( ! filter || rowStatus === filter ) {
+				$( this ).show();
+			} else {
+				$( this ).hide();
+			}
+		} );
+	} );
+
+	// -------------------------------------------------------------------------
+	// Execution log: duration bars (proportional to the max visible duration)
+	// -------------------------------------------------------------------------
+	function renderDurationBars() {
+		const $cells = $( '.cp-duration-cell[data-duration]' );
+		if ( ! $cells.length ) {
+			return;
+		}
+
+		let max = 0;
+		$cells.each( function () {
+			const v = parseInt( $( this ).data( 'duration' ), 10 );
+			if ( v > max ) {
+				max = v;
+			}
+		} );
+
+		if ( max <= 0 ) {
+			return;
+		}
+
+		$cells.each( function () {
+			const v   = parseInt( $( this ).data( 'duration' ), 10 );
+			const pct = Math.round( ( v / max ) * 100 );
+			$( this ).find( '.cp-duration-bar' ).css( 'width', pct + '%' );
+		} );
+	}
+
+	renderDurationBars();
 
 	// -------------------------------------------------------------------------
 	// Send test email
@@ -362,7 +460,7 @@
 				$section.find( '.cp-table' ).remove();
 				$section.find( '.cp-log-toolbar' ).remove();
 				$section.append(
-					'<p class="cp-empty">' + 'No emails sent yet. Alert emails (and test emails) will show up here.' + '</p>'
+					'<p class="cp-empty">No emails sent yet. Alert emails (and test emails) will show up here.</p>'
 				);
 				$( '.cp-tab[data-tab="email-log"] .cp-badge' ).remove();
 				flash( res.data.message, 'success' );
@@ -391,7 +489,7 @@
 				$section.find( '.cp-debug-log' ).remove();
 				$section.find( '.cp-log-toolbar' ).remove();
 				$section.append(
-					'<p class="cp-empty">' + 'No debug output yet. Use "Send Test Email" on the Settings tab to generate some.' + '</p>'
+					'<p class="cp-empty">No debug output yet. Use "Send Test Email" on the Settings tab to generate some.</p>'
 				);
 				flash( res.data.message, 'success' );
 			}
@@ -399,6 +497,18 @@
 		.fail( function () {
 			flash( cronpulseData.i18n.error, 'error' );
 		} );
+	} );
+
+	// -------------------------------------------------------------------------
+	// Email log: inline error expansion
+	// -------------------------------------------------------------------------
+	$( document ).on( 'click', '.cp-email-row--expandable', function () {
+		const $row       = $( this );
+		const $errorRow  = $row.next( '.cp-email-error-row' );
+		const isExpanded = $row.attr( 'aria-expanded' ) === 'true';
+
+		$row.attr( 'aria-expanded', isExpanded ? 'false' : 'true' );
+		$errorRow.toggle( ! isExpanded );
 	} );
 
 } )( jQuery );

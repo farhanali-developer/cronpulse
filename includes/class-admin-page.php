@@ -77,12 +77,17 @@ class CronPulse_Admin_Page {
 		$failing = 0;
 		$healthy = 0;
 		$never   = 0;
+		$oldest_overdue_since = null;
+
 		foreach ( $jobs as $job ) {
-			if ( $job['status'] === 'overdue' ) {
+			if ( 'overdue' === $job['status'] ) {
 				$overdue++;
-			} elseif ( $job['status'] === 'failing' ) {
+				if ( null === $oldest_overdue_since || $job['next_run'] < $oldest_overdue_since ) {
+					$oldest_overdue_since = $job['next_run'];
+				}
+			} elseif ( 'failing' === $job['status'] ) {
 				$failing++;
-			} elseif ( $job['status'] === 'healthy' ) {
+			} elseif ( 'healthy' === $job['status'] ) {
 				$healthy++;
 			} else {
 				$never++;
@@ -96,10 +101,38 @@ class CronPulse_Admin_Page {
 			</h1>
 
 			<?php
-			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only flag that toggles a static notice; nothing is processed or saved here. The actual save in CronPulse_Alerts::maybe_save_settings() is nonce-verified.
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only flag that toggles a static notice; nothing is processed or saved here.
 			if ( isset( $_GET['updated'] ) ) :
 				?>
 				<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Settings saved.', 'cronpulse' ); ?></p></div>
+			<?php endif; ?>
+
+			<?php if ( $failing > 0 || $overdue > 0 ) : ?>
+			<div class="cp-alert-banner" role="alert">
+				<span class="dashicons dashicons-warning"></span>
+				<span class="cp-alert-banner-text">
+				<?php
+				$parts = [];
+				if ( $failing > 0 ) {
+					$parts[] = sprintf(
+						/* translators: %d = number of failing cron jobs */
+						_n( '%d job failing', '%d jobs failing', $failing, 'cronpulse' ),
+						$failing
+					);
+				}
+				if ( $overdue > 0 ) {
+					$parts[] = sprintf(
+						/* translators: %d = number of overdue cron jobs */
+						_n( '%d job overdue', '%d jobs overdue', $overdue, 'cronpulse' ),
+						$overdue
+					);
+				}
+				echo esc_html( implode( ', ', $parts ) ) . ' — ';
+				?>
+				<a href="#" class="cp-alert-banner-link" data-tab="jobs"><?php esc_html_e( 'View Jobs →', 'cronpulse' ); ?></a>
+				</span>
+				<button type="button" class="cp-alert-banner-dismiss" aria-label="<?php esc_attr_e( 'Dismiss', 'cronpulse' ); ?>">✕</button>
+			</div>
 			<?php endif; ?>
 
 			<!-- Summary bar -->
@@ -115,6 +148,13 @@ class CronPulse_Admin_Page {
 				<div class="cp-summary-card cp-overdue">
 					<span class="cp-num"><?php echo esc_html( $overdue ); ?></span>
 					<span class="cp-label"><?php esc_html_e( 'Overdue', 'cronpulse' ); ?></span>
+					<?php if ( $oldest_overdue_since ) : ?>
+					<span class="cp-summary-sub"><?php echo esc_html( sprintf(
+						/* translators: %s = human-readable time, e.g. "2 hours" */
+						__( 'since %s', 'cronpulse' ),
+						human_time_diff( $oldest_overdue_since )
+					) ); ?></span>
+					<?php endif; ?>
 				</div>
 				<div class="cp-summary-card cp-failing">
 					<span class="cp-num"><?php echo esc_html( $failing ); ?></span>
@@ -132,10 +172,15 @@ class CronPulse_Admin_Page {
 				<?php endif; ?>
 			</div>
 
+			<?php echo self::render_schedule_strip( $jobs ); // phpcs:ignore WordPress.Security.EscapeOutput -- method returns pre-escaped HTML ?>
+
 			<!-- Tabs -->
 			<nav class="cp-tabs">
 				<a href="#cp-jobs" class="cp-tab cp-tab-active" data-tab="jobs">
 					<?php esc_html_e( 'Scheduled Jobs', 'cronpulse' ); ?>
+					<?php if ( $failing + $overdue > 0 ) : ?>
+					<span class="cp-badge cp-badge-alert"><?php echo esc_html( $failing + $overdue ); ?></span>
+					<?php endif; ?>
 				</a>
 				<a href="#cp-log" class="cp-tab" data-tab="log">
 					<?php esc_html_e( 'Execution Log', 'cronpulse' ); ?>
@@ -178,7 +223,7 @@ class CronPulse_Admin_Page {
 							<th class="cp-sortable" data-sort="next-run"><?php esc_html_e( 'Next Run', 'cronpulse' ); ?></th>
 							<th><?php esc_html_e( 'Last Run', 'cronpulse' ); ?></th>
 							<th class="cp-sortable" data-sort="duration"><?php esc_html_e( 'Duration', 'cronpulse' ); ?></th>
-							<th><?php esc_html_e( 'Actions',  'cronpulse' ); ?></th>
+							<th class="cp-col-expand" aria-label="<?php esc_attr_e( 'Expand', 'cronpulse' ); ?>"></th>
 						</tr>
 					</thead>
 					<tbody>
@@ -191,17 +236,18 @@ class CronPulse_Admin_Page {
 						$duration    = $duration_ms >= 0 ? $duration_ms . ' ms' : '—';
 						$sparkline   = self::render_sparkline( CronPulse_Cron_Tracker::get_recent_durations( $job['hook'], 10 ) );
 						$needs_alert_action = $alerts_enabled && in_array( $job['status'], [ 'overdue', 'failing' ], true );
+						$is_attention = in_array( $job['status'], [ 'overdue', 'failing' ], true );
+						$error_msg   = ( $last_run && ! empty( $last_run['message'] ) ) ? (string) $last_run['message'] : '';
 					?>
 					<tr
-						class="cp-row cp-status-<?php echo esc_attr( $job['status'] ); ?>"
+						class="cp-row cp-job-row cp-status-<?php echo esc_attr( $job['status'] ); ?><?php echo $is_attention ? ' cp-job-row--open' : ''; ?>"
 						data-hook="<?php echo esc_attr( $job['hook'] ); ?>"
 						data-status="<?php echo esc_attr( $job['status'] ); ?>"
 						data-next-run="<?php echo esc_attr( $job['next_run'] ); ?>"
 						data-duration="<?php echo esc_attr( $duration_ms ); ?>"
 					>
 						<td>
-							<span class="cp-dot cp-dot-<?php echo esc_attr( $job['status'] ); ?>" title="<?php echo esc_attr( ucfirst( $job['status'] ) ); ?>"></span>
-							<span class="cp-status-text"><?php echo esc_html( ucfirst( $job['status'] ) ); ?></span>
+							<span class="cp-chip cp-chip-<?php echo esc_attr( $job['status'] ); ?>"><?php echo esc_html( ucfirst( $job['status'] ) ); ?></span>
 						</td>
 						<td class="cp-hook">
 							<code><?php echo esc_html( $job['hook'] ); ?></code>
@@ -222,26 +268,50 @@ class CronPulse_Admin_Page {
 						</td>
 						<td>
 							<span class="cp-duration-text"><?php echo esc_html( $duration ); ?></span>
-							<?php echo $sparkline; // phpcs:ignore WordPress.Security.EscapeOutput -- built entirely from numeric duration data above ?>
 						</td>
-						<td>
-							<button
-								class="button button-small cp-run-now"
-								data-hook="<?php echo esc_attr( $job['hook'] ); ?>"
-								data-args="<?php echo esc_attr( wp_json_encode( $job['args'] ) ); ?>"
-							><?php esc_html_e( 'Run Now', 'cronpulse' ); ?></button>
-							<button
-								class="button button-small button-link-delete cp-unschedule"
-								data-hook="<?php echo esc_attr( $job['hook'] ); ?>"
-								data-timestamp="<?php echo esc_attr( $job['next_run'] ); ?>"
-								data-sig="<?php echo esc_attr( $job['sig'] ); ?>"
-							><?php esc_html_e( 'Delete', 'cronpulse' ); ?></button>
-							<?php if ( $needs_alert_action ) : ?>
-								<button
-									class="button button-small cp-snooze"
-									data-hook="<?php echo esc_attr( $job['hook'] ); ?>"
-								><?php esc_html_e( 'Snooze', 'cronpulse' ); ?></button>
-							<?php endif; ?>
+						<td class="cp-col-expand">
+							<span class="cp-expand-icon" aria-hidden="true">›</span>
+						</td>
+					</tr>
+					<tr class="cp-job-detail cp-status-<?php echo esc_attr( $job['status'] ); ?>"<?php echo $is_attention ? '' : ' style="display:none;"'; ?>>
+						<td colspan="7" class="cp-job-detail-cell">
+							<div class="cp-job-detail-inner">
+								<div class="cp-job-detail-meta">
+									<?php if ( $last_run ) : ?>
+									<span><strong><?php esc_html_e( 'Last run:', 'cronpulse' ); ?></strong> <?php echo esc_html( self::format_time( (int) $last_run['timestamp'] ) ); ?></span>
+									<span><strong><?php esc_html_e( 'Status:', 'cronpulse' ); ?></strong> <?php echo esc_html( ucfirst( $last_run['status'] ) ); ?></span>
+									<?php endif; ?>
+									<span><strong><?php esc_html_e( 'Duration:', 'cronpulse' ); ?></strong> <?php echo esc_html( $duration ); ?>
+										<?php echo $sparkline; // phpcs:ignore WordPress.Security.EscapeOutput -- built from numeric data ?>
+									</span>
+									<span><strong><?php esc_html_e( 'Schedule:', 'cronpulse' ); ?></strong> <?php echo esc_html( $schedule_label ); ?></span>
+								</div>
+								<?php if ( $error_msg ) : ?>
+								<div class="cp-job-detail-error">
+									<strong><?php esc_html_e( 'Last error:', 'cronpulse' ); ?></strong>
+									<code class="cp-error-code"><?php echo esc_html( $error_msg ); ?></code>
+								</div>
+								<?php endif; ?>
+								<div class="cp-job-detail-actions">
+									<button
+										class="button button-primary button-small cp-run-now"
+										data-hook="<?php echo esc_attr( $job['hook'] ); ?>"
+										data-args="<?php echo esc_attr( wp_json_encode( $job['args'] ) ); ?>"
+									><?php esc_html_e( 'Run Now', 'cronpulse' ); ?></button>
+									<?php if ( $needs_alert_action ) : ?>
+									<button
+										class="button button-small cp-snooze"
+										data-hook="<?php echo esc_attr( $job['hook'] ); ?>"
+									><?php esc_html_e( 'Snooze Alert', 'cronpulse' ); ?></button>
+									<?php endif; ?>
+									<button
+										class="button button-small button-link-delete cp-unschedule"
+										data-hook="<?php echo esc_attr( $job['hook'] ); ?>"
+										data-timestamp="<?php echo esc_attr( $job['next_run'] ); ?>"
+										data-sig="<?php echo esc_attr( $job['sig'] ); ?>"
+									><?php esc_html_e( 'Unschedule', 'cronpulse' ); ?></button>
+								</div>
+							</div>
 						</td>
 					</tr>
 					<?php endforeach; ?>
@@ -260,20 +330,28 @@ class CronPulse_Admin_Page {
 				<?php if ( empty( $log ) ) : ?>
 					<p class="cp-empty"><?php esc_html_e( 'No execution history yet. Run a cron job to start recording.', 'cronpulse' ); ?></p>
 				<?php else : ?>
-				<div class="cp-log-toolbar">
-					<button class="button cp-clear-log"><?php esc_html_e( 'Clear Log', 'cronpulse' ); ?></button>
-					<span class="cp-log-count">
-						<?php
-						echo esc_html( sprintf(
-							/* translators: 1: number of log entries stored, 2: configured retention limit */
-							__( '%1$d entries (newest first, max %2$d)', 'cronpulse' ),
-							count( $log ),
-							CronPulse_Alerts::get_settings()['log_retention']
-						) );
-						?>
-					</span>
+				<div class="cp-log-top-bar">
+					<div class="cp-log-filter-strip" role="group" aria-label="<?php esc_attr_e( 'Filter by status', 'cronpulse' ); ?>">
+						<button class="cp-log-filter is-active" data-filter=""><?php esc_html_e( 'All', 'cronpulse' ); ?></button>
+						<button class="cp-log-filter" data-filter="success">✓ <?php esc_html_e( 'Success', 'cronpulse' ); ?></button>
+						<button class="cp-log-filter" data-filter="fatal">✗ <?php esc_html_e( 'Failed', 'cronpulse' ); ?></button>
+						<button class="cp-log-filter" data-filter="stuck">⚠ <?php esc_html_e( 'Stuck', 'cronpulse' ); ?></button>
+					</div>
+					<div class="cp-log-toolbar">
+						<button class="button cp-clear-log"><?php esc_html_e( 'Clear Log', 'cronpulse' ); ?></button>
+						<span class="cp-log-count">
+							<?php
+							echo esc_html( sprintf(
+								/* translators: 1: number of log entries stored, 2: configured retention limit */
+								__( '%1$d entries (newest first, max %2$d)', 'cronpulse' ),
+								count( $log ),
+								CronPulse_Alerts::get_settings()['log_retention']
+							) );
+							?>
+						</span>
+					</div>
 				</div>
-				<table class="cp-table">
+				<table class="cp-table cp-log-table">
 					<thead>
 						<tr>
 							<th><?php esc_html_e( 'Status',   'cronpulse' ); ?></th>
@@ -294,17 +372,21 @@ class CronPulse_Admin_Page {
 						$entry_status    = sanitize_key( $entry['status'] );
 						$entry_hook      = (string) $entry['hook'];
 						$entry_timestamp = (int) $entry['timestamp'];
+						$entry_duration_raw = isset( $entry['duration'] ) ? absint( $entry['duration'] ) : 0;
 						$entry_duration  = isset( $entry['duration'] ) ? absint( $entry['duration'] ) . ' ms' : '—';
 						$entry_message   = isset( $entry['message'] ) ? (string) $entry['message'] : '';
+						$log_filter_key  = in_array( $entry_status, [ 'fatal', 'incomplete' ], true ) ? 'fatal' : $entry_status;
 					?>
-					<tr class="cp-row cp-status-<?php echo esc_attr( $entry_status ); ?>">
+					<tr class="cp-row cp-log-row cp-status-<?php echo esc_attr( $entry_status ); ?>" data-log-status="<?php echo esc_attr( $log_filter_key ); ?>">
 						<td>
-							<span class="cp-dot cp-dot-<?php echo esc_attr( $entry_status ); ?>" title="<?php echo esc_attr( $entry_message ); ?>"></span>
-							<span class="cp-status-text"><?php echo esc_html( ucfirst( $entry_status ) ); ?></span>
+							<span class="cp-chip cp-chip-<?php echo esc_attr( $entry_status ); ?>"><?php echo esc_html( ucfirst( $entry_status ) ); ?></span>
 						</td>
 						<td><code><?php echo esc_html( $entry_hook ); ?></code></td>
 						<td><?php echo esc_html( self::format_time( $entry_timestamp ) ); ?></td>
-						<td><?php echo esc_html( $entry_duration ); ?></td>
+						<td class="cp-duration-cell" data-duration="<?php echo esc_attr( $entry_duration_raw ); ?>">
+							<span class="cp-duration-text"><?php echo esc_html( $entry_duration ); ?></span>
+							<span class="cp-duration-bar" aria-hidden="true"></span>
+						</td>
 					</tr>
 					<?php endforeach; ?>
 					</tbody>
@@ -340,7 +422,7 @@ class CronPulse_Admin_Page {
 						?>
 					</span>
 				</div>
-				<table class="cp-table">
+				<table class="cp-table cp-email-table">
 					<thead>
 						<tr>
 							<th><?php esc_html_e( 'Status',  'cronpulse' ); ?></th>
@@ -360,18 +442,31 @@ class CronPulse_Admin_Page {
 						$entry_subject = isset( $entry['subject'] ) ? (string) $entry['subject'] : '';
 						$entry_type    = isset( $entry['type'] ) ? (string) $entry['type'] : '';
 						$entry_error   = isset( $entry['error'] ) ? (string) $entry['error'] : '';
-						$dot_status    = 'sent' === $entry_status ? 'success' : 'error';
+						$chip_status   = 'sent' === $entry_status ? 'success' : 'error';
+						$has_error     = '' !== $entry_error;
 					?>
-					<tr class="cp-row">
+					<tr class="cp-row<?php echo $has_error ? ' cp-email-row--expandable' : ''; ?>" <?php echo $has_error ? 'role="button" tabindex="0" aria-expanded="false"' : ''; ?>>
 						<td>
-							<span class="cp-dot cp-dot-<?php echo esc_attr( $dot_status ); ?>" title="<?php echo esc_attr( $entry_error ); ?>"></span>
-							<span class="cp-status-text"><?php echo esc_html( ucfirst( $entry_status ) ); ?></span>
+							<span class="cp-chip cp-chip-<?php echo esc_attr( $chip_status ); ?>"><?php echo esc_html( ucfirst( $entry_status ) ); ?></span>
 						</td>
 						<td><?php echo esc_html( $entry_to ); ?></td>
-						<td><?php echo esc_html( $entry_subject ); ?></td>
+						<td>
+							<?php echo esc_html( $entry_subject ); ?>
+							<?php if ( $has_error ) : ?>
+								<span class="cp-expand-hint" aria-hidden="true">▾ <?php esc_html_e( 'error', 'cronpulse' ); ?></span>
+							<?php endif; ?>
+						</td>
 						<td><?php echo esc_html( $entry_type ); ?></td>
 						<td><?php echo esc_html( self::format_time( (int) $entry['timestamp'] ) ); ?></td>
 					</tr>
+					<?php if ( $has_error ) : ?>
+					<tr class="cp-email-error-row" style="display:none;">
+						<td colspan="5" class="cp-email-error-cell">
+							<strong><?php esc_html_e( 'Error:', 'cronpulse' ); ?></strong>
+							<?php echo esc_html( $entry_error ); ?>
+						</td>
+					</tr>
+					<?php endif; ?>
 					<?php endforeach; ?>
 					</tbody>
 				</table>
@@ -477,6 +572,55 @@ class CronPulse_Admin_Page {
 	// -------------------------------------------------------------------------
 	// Helpers
 	// -------------------------------------------------------------------------
+
+	/**
+	 * Renders the 8-hour upcoming-schedule strip between the summary bar and
+	 * the tabs. Each scheduled run within the window gets a dot positioned at
+	 * its proportional offset along the timeline.
+	 *
+	 * @param array $jobs Already-computed jobs list from get_jobs().
+	 * @return string Pre-escaped HTML.
+	 */
+	private static function render_schedule_strip( array $jobs ): string {
+		$now    = time();
+		$window = 8 * HOUR_IN_SECONDS;
+		$end    = $now + $window;
+
+		$strip_jobs = [];
+		foreach ( $jobs as $job ) {
+			$ts = (int) $job['next_run'];
+			if ( $ts > $now && $ts <= $end ) {
+				$strip_jobs[] = $job;
+			}
+		}
+
+		if ( empty( $strip_jobs ) ) {
+			return '';
+		}
+
+		$dots = '';
+		foreach ( $strip_jobs as $job ) {
+			$pct    = round( ( (int) $job['next_run'] - $now ) / $window * 100, 2 );
+			$label  = esc_attr( $job['hook'] ) . ' — ' . esc_attr( self::format_time( (int) $job['next_run'] ) );
+			$dots  .= sprintf(
+				'<span class="cp-strip-dot cp-strip-dot--%1$s" style="left:%2$s%%" title="%3$s" aria-label="%3$s"></span>',
+				esc_attr( $job['status'] ),
+				esc_attr( (string) $pct ),
+				$label
+			);
+		}
+
+		$html  = '<div class="cp-schedule-strip" aria-label="' . esc_attr__( 'Upcoming runs in the next 8 hours', 'cronpulse' ) . '">';
+		$html .= '<div class="cp-strip-labels">';
+		$html .= '<span>' . esc_html__( 'Now', 'cronpulse' ) . '</span>';
+		$html .= '<span>+2h</span><span>+4h</span><span>+6h</span>';
+		$html .= '<span>+8h</span>';
+		$html .= '</div>';
+		$html .= '<div class="cp-strip-track">' . $dots . '</div>';
+		$html .= '</div>';
+
+		return $html;
+	}
 
 	/**
 	 * Build a flat list of all scheduled cron jobs with status.
