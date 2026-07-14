@@ -57,8 +57,10 @@ This plugin stores cron execution data (hook name, timestamp, duration) in the W
 
 == Screenshots ==
 
-1. Main dashboard showing scheduled jobs with status indicators
-2. Execution log tab with run history
+1. Dashboard overview — scheduled jobs with live status indicators, overdue/failing badges, and the 8-hour schedule strip
+2. Execution log with run history, status filter chips, duration sparklines, and paginated entries
+3. Email log showing delivery history with per-entry status chips and the SMTP debug log panel
+4. Settings — SMTP configuration, webhook alerts, and per-job overrides in a clean two-column layout
 
 == Frequently Asked Questions ==
 
