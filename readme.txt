@@ -1,14 +1,14 @@
 === Cron Pulse ===
-Contributors:      farhanalidev
+Contributors:      farhanalidev, alkesh7
 Tags:              cron, cron jobs, wp-cron, developer tools, debugging
 Requires at least: 5.8
 Tested up to:      7.0
-Stable tag:        1.1.0
+Stable tag:        1.1.1
 Requires PHP:      7.4
 License:           GPL-2.0-or-later
 License URI:       https://www.gnu.org/licenses/gpl-2.0.html
 
-A visual dashboard to monitor, debug, and manually trigger WordPress cron jobs.
+See every WP-Cron job's status, schedule, and run history at a glance — debug failures, catch overdue jobs, and trigger any hook manually.
 
 == Description ==
 
@@ -110,6 +110,11 @@ Check the Email Debug Log on the Email Log tab. When SMTP is enabled it captures
 
 == Changelog ==
 
+= 1.1.1 =
+* Fix: Uninstall now also removes the SMTP debug log file and its `.htaccess`/`index.php` guards under `wp-content/uploads/cronpulse-logs/`, matching the Privacy section's "all data is deleted on plugin uninstall"
+* Improved: Added a contributor, expanded the plugin description, and completed a PHPCS/doc-comment pass — no functional changes to existing features
+* Confirmed compatible with WordPress 7.0
+
 = 1.1.0 =
 * New: Alert banner above the dashboard when jobs are failing or overdue — dismissible per session
 * New: Upcoming schedule strip showing the next 8 hours of scheduled runs as a visual timeline
@@ -126,6 +131,9 @@ Check the Email Debug Log on the Email Log tab. When SMTP is enabled it captures
 * Initial release
 
 == Upgrade Notice ==
+
+= 1.1.1 =
+Uninstall now fully removes the SMTP debug log directory too. Maintenance release — no other functional changes.
 
 = 1.1.0 =
 Dashboard visual refresh: alert banner, expandable rows, schedule timeline, filter strips. No data changes.

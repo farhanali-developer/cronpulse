@@ -6,6 +6,8 @@
  * multiple client sites without SSH/WP-CLI access. Authenticates the same
  * way any other WP REST route does — cookie+nonce for logged-in browser
  * requests, or an Application Password for external/remote consumers.
+ *
+ * @package CronPulse
  */
 defined( 'ABSPATH' ) || exit;
 

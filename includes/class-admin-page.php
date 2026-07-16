@@ -3,6 +3,8 @@
  * CronPulse_Admin_Page
  *
  * Registers the wp-admin menu page and renders the cron dashboard.
+ *
+ * @package CronPulse
  */
 defined( 'ABSPATH' ) || exit;
 

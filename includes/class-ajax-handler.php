@@ -11,6 +11,8 @@
  *  - cronpulse_test_webhook   — send a test alert payload to the saved webhook URL
  *  - cronpulse_clear_email_log — wipe the email log
  *  - cronpulse_clear_debug_log — wipe the SMTP debug log
+ *
+ * @package CronPulse
  */
 defined( 'ABSPATH' ) || exit;
 

@@ -7,11 +7,16 @@
  * Evaluated as a side effect of normal site traffic (init) and of cron
  * runs completing (log_execution), so it works even if no one opens the
  * dashboard and even if WP-Cron itself is disabled.
+ *
+ * @package CronPulse
  */
 defined( 'ABSPATH' ) || exit;
 
 class CronPulse_Alerts {
 
+	/**
+	 * Registers the settings-save handler and the SMTP/From-address filters.
+	 */
 	public static function init(): void {
 		add_action( 'admin_init', [ __CLASS__, 'maybe_save_settings' ] );
 		add_action( 'phpmailer_init', [ __CLASS__, 'configure_smtp' ] );
@@ -61,6 +66,10 @@ class CronPulse_Alerts {
 		];
 	}
 
+	/**
+	 * Handles the Settings tab form submission: verifies the nonce and
+	 * capability, then persists the sanitized fields to CRONPULSE_OPTION_ALERTS.
+	 */
 	public static function maybe_save_settings(): void {
 		if ( empty( $_POST['cronpulse_alerts_submit'] ) ) {
 			return;
@@ -188,7 +197,7 @@ class CronPulse_Alerts {
 		// Captures the actual SMTP conversation (connection, TLS, AUTH,
 		// server responses) to the debug log — far more useful than a
 		// generic failure when something like the host or port is wrong.
-		$phpmailer->SMTPDebug   = 2; // client/server messages; not raw socket data
+		$phpmailer->SMTPDebug   = 2; // Client/server messages; not raw socket data.
 		$phpmailer->Debugoutput = static function ( $str ) {
 			CronPulse_Debug_Log::log_smtp_line( $str );
 		};
@@ -225,6 +234,12 @@ class CronPulse_Alerts {
 		return $admin_email ?: $email;
 	}
 
+	/**
+	 * Mirrors filter_mail_from() for the From Name, same SMTP-enabled gate.
+	 *
+	 * @param string $name Default From name wp_mail() would otherwise use.
+	 * @return string
+	 */
 	public static function filter_mail_from_name( string $name ): string {
 		$settings = self::get_settings();
 
@@ -324,6 +339,11 @@ class CronPulse_Alerts {
 		update_option( CRONPULSE_OPTION_STREAKS, $streaks, false );
 	}
 
+	/**
+	 * Zero-value streak entry for a hook that hasn't been tracked yet.
+	 *
+	 * @return array
+	 */
 	private static function default_streak(): array {
 		return [
 			'overdue_since'   => null,

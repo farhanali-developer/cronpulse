@@ -10,6 +10,8 @@
  * Lives under wp-content/uploads/ rather than the plugin directory, since
  * the plugins directory can be read-only on some hosts and gets wiped on
  * plugin updates either way.
+ *
+ * @package CronPulse
  */
 defined( 'ABSPATH' ) || exit;
 
@@ -272,5 +274,30 @@ class CronPulse_Debug_Log {
 
 		clearstatcache( true, $path );
 		return 0 === filesize( $path );
+	}
+
+	/**
+	 * Removes the debug log file and its .htaccess/index.php guards. Called
+	 * on uninstall so the plugin doesn't leave files behind in
+	 * wp-content/uploads/ — options-table data isn't the only thing this
+	 * plugin writes, and the readme's privacy section promises everything is
+	 * deleted, not just the options. The now-empty cronpulse-logs directory
+	 * itself is left in place — removing it would mean a direct rmdir() call
+	 * outside the WP_Filesystem API for a directory with nothing left in it.
+	 */
+	public static function delete_dir(): void {
+		$dir = self::get_dir();
+
+		clearstatcache( true, $dir );
+
+		if ( ! file_exists( $dir ) ) {
+			return;
+		}
+
+		foreach ( [ self::get_path(), $dir . '/.htaccess', $dir . '/index.php' ] as $file ) {
+			if ( file_exists( $file ) ) {
+				wp_delete_file( $file );
+			}
+		}
 	}
 }
