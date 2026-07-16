@@ -4,6 +4,8 @@
  *
  * WP-CLI command for scripting cron health checks across sites
  * (e.g. agencies running this in a loop over multiple client installs).
+ *
+ * @package CronPulse
  */
 defined( 'ABSPATH' ) || exit;
 

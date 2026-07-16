@@ -3,7 +3,7 @@
  * Plugin Name: Cron Pulse
  * Plugin URI:  https://wordpress.org/plugins/cronpulse/
  * Description: A visual dashboard to monitor, debug, and manually trigger WordPress cron jobs. See schedules, last run times, execution duration, and pass/fail status at a glance.
- * Version:     1.1.0
+ * Version:     1.1.1
  * Author:      Farhan Ali
  * Author URI:  https://farhanali.me
  * License:     GPL-2.0-or-later
@@ -11,17 +11,19 @@
  * Text Domain: cronpulse
  * Requires at least: 5.8
  * Requires PHP: 7.4
+ *
+ * @package CronPulse
  */
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CRONPULSE_VERSION',          '1.1.0' );
-define( 'CRONPULSE_PLUGIN_DIR',       plugin_dir_path( __FILE__ ) );
-define( 'CRONPULSE_PLUGIN_URL',       plugin_dir_url( __FILE__ ) );
-define( 'CRONPULSE_OPTION_LOG',       'cronpulse_execution_log' );
-define( 'CRONPULSE_LOG_LIMIT',        200 ); // default log retention; overridable via the Settings tab
-define( 'CRONPULSE_OPTION_ALERTS',    'cronpulse_alert_settings' ); // also holds general settings, e.g. log retention
-define( 'CRONPULSE_OPTION_STREAKS',   'cronpulse_alert_streaks' );
+define( 'CRONPULSE_VERSION', '1.1.1' );
+define( 'CRONPULSE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
+define( 'CRONPULSE_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+define( 'CRONPULSE_OPTION_LOG', 'cronpulse_execution_log' );
+define( 'CRONPULSE_LOG_LIMIT', 200 ); // Default log retention; overridable via the Settings tab.
+define( 'CRONPULSE_OPTION_ALERTS', 'cronpulse_alert_settings' ); // Also holds general settings, e.g. log retention.
+define( 'CRONPULSE_OPTION_STREAKS', 'cronpulse_alert_streaks' );
 define( 'CRONPULSE_OPTION_EMAIL_LOG', 'cronpulse_email_log' );
 
 require_once CRONPULSE_PLUGIN_DIR . 'includes/class-debug-log.php';
@@ -62,13 +64,20 @@ register_activation_hook( __FILE__, function () {
  */
 register_deactivation_hook( __FILE__, '__return_true' );
 
+register_uninstall_hook( __FILE__, 'cronpulse_uninstall' );
+
 /**
  * Uninstall: clean up stored data.
+ *
+ * @return void
  */
-register_uninstall_hook( __FILE__, 'cronpulse_uninstall' );
 function cronpulse_uninstall() {
 	delete_option( CRONPULSE_OPTION_LOG );
 	delete_option( CRONPULSE_OPTION_ALERTS );
 	delete_option( CRONPULSE_OPTION_STREAKS );
 	delete_option( CRONPULSE_OPTION_EMAIL_LOG );
+
+	// Also removes the SMTP debug log file and its .htaccess/index.php guards
+	// under wp-content/uploads/cronpulse-logs/ — not just the options table.
+	CronPulse_Debug_Log::delete_dir();
 }

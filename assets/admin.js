@@ -7,9 +7,9 @@
 	const EMAIL_PAGE_SIZE = 10;
 	let logPage      = 1;
 	let emailLogPage = 1;
-	let currentPage = 1;
-	let sortKey     = null; // 'next-run' | 'duration' | null
-	let sortDir     = 'asc';
+	let currentPage  = 1;
+	let sortKey      = null; // 'next-run' | 'duration' | null
+	let sortDir      = 'asc';
 
 	// -------------------------------------------------------------------------
 	// Flash message
@@ -96,7 +96,8 @@
 				const bv = parseFloat( $( b ).data( sortKey ) );
 				return sortDir === 'asc' ? av - bv : bv - av;
 			} );
-			// Re-append main rows and keep detail rows immediately after each
+
+			// Re-append main rows and keep detail rows immediately after each.
 			$.each( rows, function ( i, row ) {
 				const $detail = $( row ).next( '.cp-job-detail' );
 				$tbody.append( row );
@@ -118,7 +119,7 @@
 			return matchesText && matchesStatus;
 		} );
 
-		// Hide all main rows and their detail rows
+		// Hide all main rows and their detail rows.
 		$rows.each( function () {
 			$( this ).hide();
 			$( this ).next( '.cp-job-detail' ).hide();
@@ -133,7 +134,7 @@
 		$matching.slice( start, start + PAGE_SIZE ).each( function () {
 			$( this ).show();
 			const $detail = $( this ).next( '.cp-job-detail' );
-			// Show detail row only if it was already open
+			// Show detail row only if it was already open.
 			if ( $detail.length && $( this ).hasClass( 'cp-job-row--open' ) ) {
 				$detail.show();
 			}
@@ -151,18 +152,22 @@
 		currentPage = 1;
 		renderTable();
 	} );
+
 	$( '#cp-status-filter' ).on( 'change', function () {
 		currentPage = 1;
 		renderTable();
 	} );
+
 	$( '#cp-prev-page' ).on( 'click', function () {
 		currentPage--;
 		renderTable();
 	} );
+
 	$( '#cp-next-page' ).on( 'click', function () {
 		currentPage++;
 		renderTable();
 	} );
+
 	$( '.cp-sortable' ).on( 'click', function () {
 		const key = $( this ).data( 'sort' );
 
@@ -186,7 +191,7 @@
 	// Expandable job rows
 	// -------------------------------------------------------------------------
 	$( document ).on( 'click', '.cp-job-row', function ( e ) {
-		// Don't toggle if a button inside the row was clicked
+		// Don't toggle if a button inside the row was clicked.
 		if ( $( e.target ).closest( 'button, a' ).length ) {
 			return;
 		}
@@ -230,7 +235,7 @@
 					$mainRow.next( '.cp-job-detail' ).find( '.cp-duration-text' ).text( res.data.duration + ' ms' );
 				}
 
-				// Flip status chip if it was overdue/pending/failing → healthy
+				// Flip status chip if it was overdue/pending/failing → healthy.
 				$mainRow.removeClass( 'cp-status-overdue cp-status-pending cp-status-failing' )
 				        .addClass( 'cp-status-healthy' )
 				        .attr( 'data-status', 'healthy' );
@@ -356,7 +361,7 @@
 	$( document ).on( 'click', '.cp-log-filter', function () {
 		$( '.cp-log-filter' ).removeClass( 'is-active' );
 		$( this ).addClass( 'is-active' );
-		// renderLogTable() is called via the separate click handler wired above
+		// renderLogTable() is called via the separate click handler wired below.
 	} );
 
 	// -------------------------------------------------------------------------
@@ -398,7 +403,7 @@
 			return;
 		}
 
-		// Only paginate currently visible rows (respects active filter)
+		// Only paginate currently visible rows (respects active filter).
 		const $visible = $rows.filter( ':visible, [data-log-status]' ).filter( function () {
 			const activeFilter = $( '.cp-log-filter.is-active' ).data( 'filter' );
 			if ( ! activeFilter ) {
@@ -407,7 +412,7 @@
 			return $( this ).data( 'log-status' ) === activeFilter;
 		} );
 
-		// Re-filter: hide all, then show page slice
+		// Re-filter: hide all, then show page slice.
 		$rows.hide();
 
 		const total      = $visible.length;
@@ -425,15 +430,23 @@
 		$( '#cp-log-next' ).prop( 'disabled', logPage >= totalPages );
 	}
 
-	// Re-run log pagination whenever the filter changes
-	const _originalLogFilter = $( document ).off( 'click.cplogfilter' );
+	// Re-run log pagination whenever the filter changes. This handler is
+	// intentionally separate from the is-active toggle above so pagination
+	// stays a self-contained concern — it doesn't touch filter-button classes.
 	$( document ).on( 'click', '.cp-log-filter', function () {
 		logPage = 1;
 		renderLogTable();
 	} );
 
-	$( '#cp-log-prev' ).on( 'click', function () { logPage--;  renderLogTable(); } );
-	$( '#cp-log-next' ).on( 'click', function () { logPage++;  renderLogTable(); } );
+	$( '#cp-log-prev' ).on( 'click', function () {
+		logPage--;
+		renderLogTable();
+	} );
+
+	$( '#cp-log-next' ).on( 'click', function () {
+		logPage++;
+		renderLogTable();
+	} );
 
 	renderLogTable();
 
@@ -441,7 +454,7 @@
 	// Email log pagination
 	// -------------------------------------------------------------------------
 	function renderEmailLogTable() {
-		// Each email entry may have a sibling error row — paginate both together
+		// Each email entry may have a sibling error row — paginate both together.
 		const $mainRows = $( '.cp-email-table .cp-row' );
 		if ( ! $mainRows.length ) {
 			return;
@@ -461,7 +474,7 @@
 		const start = ( emailLogPage - 1 ) * EMAIL_PAGE_SIZE;
 		$mainRows.slice( start, start + EMAIL_PAGE_SIZE ).each( function () {
 			$( this ).show();
-			// Only show error row if it was already expanded
+			// Only show error row if it was already expanded.
 			const $err = $( this ).next( '.cp-email-error-row' );
 			if ( $( this ).attr( 'aria-expanded' ) === 'true' ) {
 				$err.show();
@@ -474,8 +487,15 @@
 		$( '#cp-email-log-next' ).prop( 'disabled', emailLogPage >= totalPages );
 	}
 
-	$( '#cp-email-log-prev' ).on( 'click', function () { emailLogPage--;  renderEmailLogTable(); } );
-	$( '#cp-email-log-next' ).on( 'click', function () { emailLogPage++;  renderEmailLogTable(); } );
+	$( '#cp-email-log-prev' ).on( 'click', function () {
+		emailLogPage--;
+		renderEmailLogTable();
+	} );
+
+	$( '#cp-email-log-next' ).on( 'click', function () {
+		emailLogPage++;
+		renderEmailLogTable();
+	} );
 
 	renderEmailLogTable();
 

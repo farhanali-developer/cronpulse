@@ -4,6 +4,8 @@
  *
  * Wraps every registered cron hook to measure execution time and
  * record pass/fail status in the persistent log.
+ *
+ * @package CronPulse
  */
 defined( 'ABSPATH' ) || exit;
 

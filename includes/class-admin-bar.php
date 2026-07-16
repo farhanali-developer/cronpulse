@@ -5,6 +5,8 @@
  * Adds a small warning badge to the WP toolbar when any job is overdue
  * or failing, so problems are visible from any page without remembering
  * to open the dashboard.
+ *
+ * @package CronPulse
  */
 defined( 'ABSPATH' ) || exit;
 
@@ -16,6 +18,11 @@ class CronPulse_Admin_Bar {
 		add_action( 'wp_enqueue_scripts',    [ __CLASS__, 'enqueue_style' ] );
 	}
 
+	/**
+	 * Adds the warning badge node to the toolbar when jobs need attention.
+	 *
+	 * @param WP_Admin_Bar $wp_admin_bar Core toolbar instance, passed by the admin_bar_menu action.
+	 */
 	public static function add_node( $wp_admin_bar ): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
